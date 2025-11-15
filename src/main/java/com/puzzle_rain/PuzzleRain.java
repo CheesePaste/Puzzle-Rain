@@ -3,6 +3,7 @@ package com.puzzle_rain;
 import com.puzzle_rain.command.PuzzleRainCommand;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ public class PuzzleRain implements ModInitializer {
 	private static PuzzleRain instance;
 
 	private final AnimationTaskManager animationTaskManager = new AnimationTaskManager();
+	private final FlyingBlockAnimationManager flyingAnimationManager = new FlyingBlockAnimationManager();
 
 	@Override
 	public void onInitialize() {
@@ -24,6 +26,11 @@ public class PuzzleRain implements ModInitializer {
 		// 注册命令
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
 			PuzzleRainCommand.register(dispatcher);
+		});
+
+		// 注册tick事件来更新飞行动画
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+			flyingAnimationManager.tick();
 		});
 	}
 
@@ -38,5 +45,9 @@ public class PuzzleRain implements ModInitializer {
 
 	public AnimationTaskManager getAnimationTaskManager() {
 		return animationTaskManager;
+	}
+
+	public FlyingBlockAnimationManager getFlyingAnimationManager() {
+		return flyingAnimationManager;
 	}
 }

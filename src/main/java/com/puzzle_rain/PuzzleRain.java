@@ -77,7 +77,7 @@ public class PuzzleRain implements ModInitializer {
 			this.targetPos = targetPos;
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
-			this.animationDuration = Math.max(40, totalDistance * 4); // 40-200+ ticks depending on distance
+			this.animationDuration = Math.max(60, totalDistance * 6); // 60-300+ ticks depending on distance for smoother animation
 			this.progress = 0.0;
 			this.currentTick = 0;
 
@@ -101,7 +101,7 @@ public class PuzzleRain implements ModInitializer {
 			double y = startPos.y + (targetPos.y - startPos.y) * easedProgress;
 			double z = startPos.z + (targetPos.z - startPos.z) * easedProgress;
 
-			entity.setPosition(x, y, z);
+			entity.refreshPositionAfterTeleport(x, y, z);
 
 			// Check if we've reached the destination
 			boolean reached = progress >= 1.0;

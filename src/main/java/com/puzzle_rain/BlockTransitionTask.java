@@ -60,8 +60,8 @@ public class BlockTransitionTask {
                 world.breakBlock(pos, false);
             }
 
-            // Phase 2: Create flying block entities and register them with the animation manager
-            FlyingBlockAnimationManager animationManager = PuzzleRain.getInstance().getFlyingAnimationManager();
+            // Phase 2: Create flying block entities and register them with the animation system
+            PuzzleRain puzzleRain = PuzzleRain.getInstance();
 
             for (int i = 0; i < originalPositions.size(); i++) {
                 BlockPos targetPos = originalPositions.get(i);
@@ -95,8 +95,8 @@ public class BlockTransitionTask {
                 fallingBlock.setVelocity(0, 0, 0);
                 fallingBlock.setHurtEntities(0.0f, 0);
 
-                // Register the animation with the manager
-                animationManager.addAnimation(world, fallingBlock, startPos, targetVec, state);
+                // Register the animation with the main puzzle rain instance
+                puzzleRain.addFlyingAnimation(world, fallingBlock, startPos, targetVec, state);
             }
 
         } catch (Exception e) {

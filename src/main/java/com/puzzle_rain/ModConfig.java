@@ -1,5 +1,6 @@
 package com.puzzle_rain;
 
+import com.jcraft.jorbis.Block;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
 import net.minecraft.util.math.BlockPos;
@@ -10,8 +11,8 @@ import java.util.List;
 @Config(name = "puzzle-rain")
 public class ModConfig implements ConfigData {
 
-    public V3 StartPos=new V3(0,0,0);
-    public V3 EndPos=new V3(0,0,0);
+    public BlockPos StartPos;
+    public BlockPos EndPos;
 
     public List<V3> EmitterPoints=new ArrayList<>();
 

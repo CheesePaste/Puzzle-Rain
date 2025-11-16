@@ -7,6 +7,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MovementType;
 import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
@@ -20,6 +22,8 @@ public class FlyingBlockEntity extends Entity {
     private int age = 0;
     private int maxAge = 20000; // 10秒后自动消失，防止内存泄漏
 
+    public static final TrackedData<Integer> BLOCK_STATE_ID = DataTracker.registerData(FlyingBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
+
     public FlyingBlockEntity(EntityType<?> type, World world) {
         super(type, world);
         this.noClip = true;
@@ -28,6 +32,12 @@ public class FlyingBlockEntity extends Entity {
 
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
+        builder.add(BLOCK_STATE_ID,blockState11);
+    }
+
+
+    @Override
+    public void onTrackedDataSet(TrackedData<?> data) {
 
     }
 
@@ -37,14 +47,32 @@ public class FlyingBlockEntity extends Entity {
         super(ModEntities.FLYING_BLOCK_ENTITY, world);
         this.setPosition(Vec3d.ofCenter(pos));
         this.blockState11 = Block.getRawIdFromState(blockState);
+        this.dataTracker.set(BLOCK_STATE_ID,Block.getRawIdFromState(blockState));
     }
 
     public void setBlockState(BlockState blockState) {
+
         this.blockState11 = Block.getRawIdFromState(blockState);
+        if (!this.getWorld().isClient()) {
+            //this.dataTracker.set(BLOCK_STATE_ID, Block.getRawIdFromState(blockState));
+        }
+    }
+
+
+    @Override
+    public void writeCustomDataToNbt(NbtCompound nbt) {
+            nbt.putInt("BlockState", this.blockState11);
+
+    }
+    @Override
+    public void readCustomDataFromNbt(NbtCompound nbt) {
+        if (nbt.contains("BlockState")) {
+            this.blockState11 = nbt.getInt("BlockState");
+        }
     }
 
     public BlockState getBlockState() {
-        return Block.getStateFromRawId(this.blockState11);
+        return Block.getStateFromRawId(this.dataTracker.get(BLOCK_STATE_ID));
     }
 
     @Override
@@ -67,15 +95,7 @@ public class FlyingBlockEntity extends Entity {
 
 
 
-    @Override
-    public void writeCustomDataToNbt(NbtCompound nbt) {
 
-    }
-
-    @Override
-    public void readCustomDataFromNbt(NbtCompound nbt) {
-
-    }
 
 
 
@@ -93,6 +113,9 @@ public class FlyingBlockEntity extends Entity {
     public boolean isPushable() {
         return false; // 不能被推动
     }
+
+
+
 
     @Override
     public boolean doesNotCollide(double offsetX, double offsetY, double offsetZ) {

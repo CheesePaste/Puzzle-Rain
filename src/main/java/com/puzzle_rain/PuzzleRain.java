@@ -6,6 +6,7 @@ import com.puzzle_rain.entity.ModEntities;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -196,9 +197,10 @@ public class PuzzleRain implements ModInitializer {
 		flyingBlock.setPosition(startPos);
 
 		flyingBlock.setBlockState(blockState);
+		flyingBlock.getDataTracker().set(FlyingBlockEntity.BLOCK_STATE_ID, Block.getRawIdFromState(blockState));
 		// 生成实体到世界
-		//world.spawnEntity(flyingBlock);
-		world.spawnEntityAndPassengers(flyingBlock);
+		world.spawnEntity(flyingBlock);
+		//world.spawnEntityAndPassengers(flyingBlock);
 		flyingBlock.setBlockState(blockState);
 		// 创建并添加动画
 		FlyingBlockAnimation animation = new FlyingBlockAnimation(world, flyingBlock, startPos, targetPos, blockState);

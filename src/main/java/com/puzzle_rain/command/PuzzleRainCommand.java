@@ -94,15 +94,6 @@ public class PuzzleRainCommand {
         }
 
 
-        // 检查选择区域是否过大以避免服务器崩溃
-        int xSize = Math.abs(bounds.getMax().getX() - bounds.getMin().getX());
-        int ySize = Math.abs(bounds.getMax().getY() - bounds.getMin().getY());
-        int zSize = Math.abs(bounds.getMax().getZ() - bounds.getMin().getZ());
-
-        if (xSize > 64 || ySize > 64 || zSize > 64) {
-            context.getSource().sendError(Text.literal("Selection too large in one dimension! Maximum 64 blocks in any direction."));
-            return 0;
-        }
 
         // Generate unique task ID for this animation
         String taskId = player.getUuid().toString() + "_" + System.currentTimeMillis();

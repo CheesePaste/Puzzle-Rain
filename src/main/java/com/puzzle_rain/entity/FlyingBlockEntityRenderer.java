@@ -29,10 +29,10 @@ public class FlyingBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity>
         matrices.push();
 
         // 应用旋转动画
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(entity.getYaw(tickDelta)));
+        //matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(entity.getYaw(tickDelta)));
 
         // 应用缩放（可选）
-        matrices.translate(-0.5, 0.0, -0.5);
+        //matrices.translate(-0.5, 0.0, -0.5);
 
         BlockRenderManager blockRenderManager = MinecraftClient.getInstance().getBlockRenderManager();
         blockRenderManager.renderBlockAsEntity(blockState, matrices, vertexConsumers, light, OverlayTexture.DEFAULT_UV);

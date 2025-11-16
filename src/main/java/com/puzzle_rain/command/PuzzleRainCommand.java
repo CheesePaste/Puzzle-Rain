@@ -93,10 +93,6 @@ public class PuzzleRainCommand {
             return 0;
         }
 
-        if (bounds.getVolume() > 1000) {
-            context.getSource().sendError(Text.literal("Selection too large! Maximum 1000 blocks."));
-            return 0;
-        }
 
         // 检查选择区域是否过大以避免服务器崩溃
         int xSize = Math.abs(bounds.getMax().getX() - bounds.getMin().getX());

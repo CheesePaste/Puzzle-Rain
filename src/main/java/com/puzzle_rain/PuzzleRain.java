@@ -210,13 +210,7 @@ public class PuzzleRain implements ModInitializer {
 	}
 
 	public void tickFlyingAnimations() {
-		Iterator<FlyingBlockAnimation> iterator = flyingAnimations.iterator();
-		while (iterator.hasNext()) {
-			FlyingBlockAnimation animation = iterator.next();
-			if (!animation.update()) {
-				iterator.remove();
-			}
-		}
+        flyingAnimations.removeIf(animation -> !animation.update());
 	}
 
 	public int getFlyingAnimationCount() {

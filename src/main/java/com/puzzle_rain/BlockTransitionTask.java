@@ -266,7 +266,7 @@ private void performAnimation() {
 
             int xSize = bounds.getMax().getX() - bounds.getMin().getX();
             int zSize = bounds.getMax().getZ() - bounds.getMin().getZ();
-            double spread = Math.max(xSize, zSize) * 0.6;
+            double spread = Math.max(xSize, zSize) * 0.6*PuzzleRain.config.factor_spread;
 
             Random r = new Random();
             Vec3d startPos = boundsCenter.add(

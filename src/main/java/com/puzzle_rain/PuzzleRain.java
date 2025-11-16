@@ -35,6 +35,7 @@ public class PuzzleRain implements ModInitializer {
 	// 添加静态实例
 	private static PuzzleRain instance;
 
+	public static ModConfig config;
 	private final AnimationTaskManager animationTaskManager = new AnimationTaskManager();
 
 	// Flying block animation fields
@@ -68,7 +69,7 @@ public class PuzzleRain implements ModInitializer {
 
 		GuiRegistry registry = AutoConfig.getGuiRegistry(ModConfig.class);
 		KeyBindings.register();
-		ModConfig config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
+		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (KeyBindings.openConfigKey.wasPressed()) {
 				RegionManager.getInstance().setFirstPosition(client.player,config.StartPos);
@@ -118,7 +119,7 @@ public class PuzzleRain implements ModInitializer {
 			this.targetPos = targetPos;
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
-			this.animationDuration = (int) Math.max(40, totalDistance * 8); // 动画时间基于距离
+			this.animationDuration = (int) Math.max(40, totalDistance * 8*PuzzleRain.config.factor); // 动画时间基于距离
 			//this.entity.blockState11=13;
 			// 计算贝塞尔曲线控制点
 			Vec3d direction = targetPos.subtract(startPos).normalize();

@@ -20,7 +20,7 @@ import net.minecraft.world.World;
 public class FlyingBlockEntity extends Entity {
     public int blockState11=11;
     private int age = 0;
-    private int maxAge = 20000; // 10秒后自动消失，防止内存泄漏
+    private int maxAge = 20000; // 1000秒后自动消失，防止内存泄漏
 
     public static final TrackedData<Integer> BLOCK_STATE_ID = DataTracker.registerData(FlyingBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 

@@ -1,28 +1,27 @@
 package com.puzzle_rain;
 
 import net.minecraft.block.BlockState;
-import net.minecraft.entity.FallingBlockEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 public class BlockTransitionTask {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BlockTransitionTask.class);
+
     private final ServerWorld world;
-    private final BlockBounds bounds;
     private final List<BlockPos> allPositions;
     private final List<BlockPos> nonAirPositions;
-
+    private final BlockBounds bounds;
     private final String taskId;
 
-    private BlockTransitionTask(ServerWorld world, BlockBounds bounds, String taskId) {
+    public BlockTransitionTask(ServerWorld world, BlockBounds bounds, String taskId) {
         this.world = world;
         this.bounds = bounds;
         this.taskId = taskId;
@@ -51,12 +50,15 @@ public class BlockTransitionTask {
     private void performAnimation() {
         try {
             // Phase 1: 存储原始方块并破坏
-            List<BlockPos> originalPositions = new ArrayList<>(nonAirPositions);
-            List<BlockState> originalStates = new ArrayList<>();
+            List<BlockPos> positions = new ArrayList<>(nonAirPositions);
+            List<BlockState> states = new ArrayList<>();
 
-            for (BlockPos pos : originalPositions) {
+            LOGGER.info("Starting puzzle rain animation for {} blocks", positions.size());
+
+            // 破坏方块并记录状态
+            for (BlockPos pos : positions) {
                 BlockState state = world.getBlockState(pos);
-                originalStates.add(state);
+                states.add(state);
                 world.breakBlock(pos, false);
             }
 
@@ -68,61 +70,29 @@ public class BlockTransitionTask {
                 return;
             }
 
-            // Phase 2: 创建飞行动画
-            PuzzleRain puzzleRain = PuzzleRain.getInstance();
+            // 设置动画数据
+            PuzzleRain.getInstance().setupAnimation(world, bounds, positions, states);
 
-            for (int i = 0; i < originalPositions.size(); i++) {
-                BlockPos targetPos = originalPositions.get(i);
-                BlockState state = originalStates.get(i);
-
-                // 计算起始位置
-                Vec3d boundsCenter = new Vec3d(
-                        bounds.getCenter().getX() + 0.5,
-                        bounds.getCenter().getY() + 0.5,
-                        bounds.getCenter().getZ() + 0.5
-                );
-
-                int xSize = bounds.getMax().getX() - bounds.getMin().getX();
-                int zSize = bounds.getMax().getZ() - bounds.getMin().getZ();
-                double spread = Math.max(xSize, zSize) * 0.6;
-
-                Random r = new Random();
-                Vec3d startPos = boundsCenter.add(
-                        r.nextDouble() * spread - spread * 0.5,
-                        10 + r.nextDouble() * 8,
-                        r.nextDouble() * spread - spread * 0.5
-                );
-
-                Vec3d targetVec = new Vec3d(
-                        targetPos.getX() + 0.5,
-                        targetPos.getY() + 0.5,
-                        targetPos.getZ() + 0.5
-                );
-
-
-                // 使用自定义实体而不是 FallingBlockEntity
-                puzzleRain.addFlyingAnimation(world, startPos, targetVec, state);
-
-                // 分组延迟
-                if (i % 4 == 0) {
-                    try {
-                        Thread.sleep(40);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
-                }
-            }
+            LOGGER.info("Animation setup complete, {} blocks ready to fly", positions.size());
 
         } catch (Exception e) {
             throw new CompletionException("Animation failed", e);
         }
-
-
-
     }
 
+    public int getTotalBlocks() {
+        return nonAirPositions.size();
+    }
 
+    public int getRemainingBlocks() {
+        return PuzzleRain.getInstance().getPendingBlockCount() + PuzzleRain.getInstance().getCurrentFlyingCount();
+    }
 
+    public boolean isComplete() {
+        return PuzzleRain.getInstance().isAnimationComplete();
+    }
 
+    public float getProgress() {
+        return PuzzleRain.getInstance().getAnimationProgress();
+    }
 }

@@ -1,8 +1,6 @@
 package com.puzzle_rain;
 
 import net.minecraft.block.BlockState;
-import net.minecraft.entity.FallingBlockEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -68,7 +66,7 @@ public class BlockTransitionTask {
                 return;
             }
 
-            // Phase 2: 创建飞行动画
+            // Phase 2: 创建飞行动画（现在会分批生成）
             PuzzleRain puzzleRain = PuzzleRain.getInstance();
 
             for (int i = 0; i < originalPositions.size(); i++) {
@@ -99,14 +97,13 @@ public class BlockTransitionTask {
                         targetPos.getZ() + 0.5
                 );
 
-
-                // 使用自定义实体而不是 FallingBlockEntity
+                // 使用新的队列系统添加动画
                 puzzleRain.addFlyingAnimation(world, startPos, targetVec, state);
 
-                // 分组延迟
+                // 分组延迟，避免一次性生成太多请求
                 if (i % 4 == 0) {
                     try {
-                        Thread.sleep(40);
+                        Thread.sleep(20); // 减少延迟时间，因为现在有队列控制
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         return;
@@ -114,15 +111,10 @@ public class BlockTransitionTask {
                 }
             }
 
+            PuzzleRain.LOGGER.info("Animation task completed with {} flying block requests", originalPositions.size());
+
         } catch (Exception e) {
             throw new CompletionException("Animation failed", e);
         }
-
-
-
     }
-
-
-
-
 }

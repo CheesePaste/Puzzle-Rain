@@ -17,7 +17,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class PuzzleRain implements ModInitializer {
 	public static final String MOD_ID = "puzzle-rain";
@@ -29,7 +30,12 @@ public class PuzzleRain implements ModInitializer {
 	private final AnimationTaskManager animationTaskManager = new AnimationTaskManager();
 
 	// Flying block animation fields
-	private final List<FlyingBlockAnimation> flyingAnimations = new ArrayList<>();
+	private final Queue<AnimationRequest> pendingAnimations = new LinkedList<>();
+	private final ArrayList<FlyingBlockAnimation> activeAnimations = new ArrayList<>();
+
+	// 配置参数
+	private static final int MAX_CONCURRENT_FLYING_BLOCKS = 600; // 最大同时飞行方块数
+	private static final int MAX_SPAWN_PER_TICK = 5; // 每帧最多生成新方块数
 
 	@Override
 	public void onInitialize() {
@@ -87,7 +93,7 @@ public class PuzzleRain implements ModInitializer {
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
 			this.animationDuration = (int) Math.max(40, totalDistance * 8); // 动画时间基于距离
-			//this.entity.blockState11=13;
+
 			// 计算贝塞尔曲线控制点
 			Vec3d direction = targetPos.subtract(startPos).normalize();
 			double height = Math.max(5, totalDistance * 0.4);
@@ -185,45 +191,114 @@ public class PuzzleRain implements ModInitializer {
 		public FlyingBlockEntity getEntity() {
 			return this.entity;
 		}
+
+		public boolean isCompleted() {
+			return hasReached;
+		}
+	}
+
+	// 动画请求类
+	private static class AnimationRequest {
+		public final ServerWorld world;
+		public final Vec3d startPos;
+		public final Vec3d targetPos;
+		public final BlockState blockState;
+
+		public AnimationRequest(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
+			this.world = world;
+			this.startPos = startPos;
+			this.targetPos = targetPos;
+			this.blockState = blockState;
+		}
 	}
 
 	public void addFlyingAnimation(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
-		// 创建自定义飞行方块实体
-
-		FlyingBlockEntity flyingBlock = new FlyingBlockEntity(world,
-				new BlockPos((int)startPos.x, (int)startPos.y, (int)startPos.z), blockState);
-
-		// 设置初始位置
-		flyingBlock.setPosition(startPos);
-
-		flyingBlock.setBlockState(blockState);
-		flyingBlock.getDataTracker().set(FlyingBlockEntity.BLOCK_STATE_ID, Block.getRawIdFromState(blockState));
-		// 生成实体到世界
-		world.spawnEntity(flyingBlock);
-		//world.spawnEntityAndPassengers(flyingBlock);
-		flyingBlock.setBlockState(blockState);
-		// 创建并添加动画
-		FlyingBlockAnimation animation = new FlyingBlockAnimation(world, flyingBlock, startPos, targetPos, blockState);
-		flyingAnimations.add(animation);
-
-		LOGGER.debug("Created flying block animation from {} to {}", startPos, targetPos);
+		// 将动画请求加入待处理队列
+		pendingAnimations.offer(new AnimationRequest(world, startPos, targetPos, blockState));
+		LOGGER.debug("Queued flying block animation from {} to {}", startPos, targetPos);
 	}
 
 	public void tickFlyingAnimations() {
-        flyingAnimations.removeIf(animation -> !animation.update());
+		// 1. 先更新所有活跃的动画，移除已完成的
+		Iterator<FlyingBlockAnimation> iterator = activeAnimations.iterator();
+		while (iterator.hasNext()) {
+			FlyingBlockAnimation animation = iterator.next();
+			if (!animation.update()) {
+				// 动画完成，移除
+				iterator.remove();
+				LOGGER.debug("Animation completed, active count: {}", activeAnimations.size());
+			}
+		}
+
+		// 2. 如果当前活跃动画数量小于上限，从待处理队列中生成新的动画
+		int availableSlots = MAX_CONCURRENT_FLYING_BLOCKS - activeAnimations.size();
+		if (availableSlots > 0 && !pendingAnimations.isEmpty()) {
+			int spawnCount = Math.min(Math.min(availableSlots, MAX_SPAWN_PER_TICK), pendingAnimations.size());
+
+			for (int i = 0; i < spawnCount; i++) {
+				AnimationRequest request = pendingAnimations.poll();
+				if (request == null) break;
+
+				createFlyingBlockAnimation(request);
+			}
+		}
+
+		// 调试信息
+		if (!pendingAnimations.isEmpty()) {
+			LOGGER.debug("Pending animations: {}, Active animations: {}", pendingAnimations.size(), activeAnimations.size());
+		}
+	}
+
+	private void createFlyingBlockAnimation(AnimationRequest request) {
+		try {
+			// 创建自定义飞行方块实体
+			FlyingBlockEntity flyingBlock = new FlyingBlockEntity(request.world,
+					new BlockPos((int)request.startPos.x, (int)request.startPos.y, (int)request.startPos.z), request.blockState);
+
+			// 设置初始位置
+			flyingBlock.setPosition(request.startPos);
+			flyingBlock.setBlockState(request.blockState);
+			flyingBlock.getDataTracker().set(FlyingBlockEntity.BLOCK_STATE_ID, Block.getRawIdFromState(request.blockState));
+
+			// 生成实体到世界
+			request.world.spawnEntity(flyingBlock);
+			flyingBlock.setBlockState(request.blockState);
+
+			// 创建并添加动画
+			FlyingBlockAnimation animation = new FlyingBlockAnimation(request.world, flyingBlock, request.startPos, request.targetPos, request.blockState);
+			activeAnimations.add(animation);
+
+			LOGGER.debug("Created flying block animation from {} to {}", request.startPos, request.targetPos);
+		} catch (Exception e) {
+			LOGGER.error("Failed to create flying block animation", e);
+		}
 	}
 
 	public int getFlyingAnimationCount() {
-		return flyingAnimations.size();
+		return activeAnimations.size();
+	}
+
+	public int getPendingAnimationCount() {
+		return pendingAnimations.size();
 	}
 
 	public void clearFlyingAnimations() {
-		for (FlyingBlockAnimation animation : flyingAnimations) {
+		for (FlyingBlockAnimation animation : activeAnimations) {
 			if (!animation.getEntity().isRemoved()) {
 				animation.getEntity().discard();
 			}
 		}
-		flyingAnimations.clear();
+		activeAnimations.clear();
+		pendingAnimations.clear();
 		LOGGER.info("Cleared all flying animations");
+	}
+
+	// 获取配置参数的方法（可选，用于命令或其他地方）
+	public static int getMaxConcurrentFlyingBlocks() {
+		return MAX_CONCURRENT_FLYING_BLOCKS;
+	}
+
+	public static int getMaxSpawnPerTick() {
+		return MAX_SPAWN_PER_TICK;
 	}
 }

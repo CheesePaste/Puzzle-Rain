@@ -67,7 +67,7 @@ public class PuzzleRain implements ModInitializer {
 
 		GuiRegistry registry = AutoConfig.getGuiRegistry(ModConfig.class);
 		KeyBindings.register();
-		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
+		ModConfig config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (KeyBindings.openConfigKey.wasPressed()) {
 				RegionManager.getInstance().setFirstPosition(client.player,config.StartPos.ToBP());

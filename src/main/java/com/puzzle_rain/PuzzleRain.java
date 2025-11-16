@@ -3,7 +3,12 @@ package com.puzzle_rain;
 import com.puzzle_rain.command.PuzzleRainCommand;
 import com.puzzle_rain.entity.FlyingBlockEntity;
 import com.puzzle_rain.entity.ModEntities;
+import me.shedaniel.autoconfig.AutoConfig;
+import me.shedaniel.autoconfig.ConfigHolder;
+import me.shedaniel.autoconfig.gui.registry.GuiRegistry;
+import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Block;
@@ -31,6 +36,9 @@ public class PuzzleRain implements ModInitializer {
 	// Flying block animation fields
 	private final List<FlyingBlockAnimation> flyingAnimations = new ArrayList<>();
 
+	public static ModConfig config;
+	public static ConfigHolder ch = AutoConfig.register(ModConfig.class, GsonConfigSerializer::new);
+
 	@Override
 	public void onInitialize() {
 		LOGGER.info("Puzzle Rain mod initialized!");
@@ -48,6 +56,23 @@ public class PuzzleRain implements ModInitializer {
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			tickFlyingAnimations();
 		});
+
+
+
+		GuiRegistry registry = AutoConfig.getGuiRegistry(ModConfig.class);
+		KeyBindings.register();
+		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
+		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			while (KeyBindings.openConfigKey.wasPressed()) {
+				RegionManager.getInstance().setFirstPosition(client.player,config.StartPos.ToBP());
+				RegionManager.getInstance().setSecondPosition(client.player,config.StartPos.ToBP());
+				if (client.player != null) {
+					client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
+				}
+			}
+		});
+
+
 	}
 
 	// 添加获取实例的方法

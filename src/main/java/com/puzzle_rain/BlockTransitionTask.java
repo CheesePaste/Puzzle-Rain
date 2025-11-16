@@ -49,60 +49,76 @@ public class BlockTransitionTask {
 
     private void performAnimation() {
         try {
-            // Phase 1: Store original blocks and break them
+            // Phase 1: 存储原始方块并破坏
             List<BlockPos> originalPositions = new ArrayList<>(nonAirPositions);
             List<BlockState> originalStates = new ArrayList<>();
 
             for (BlockPos pos : originalPositions) {
                 BlockState state = world.getBlockState(pos);
                 originalStates.add(state);
-                // Break the block but don't drop items
                 world.breakBlock(pos, false);
             }
 
-            // Phase 2: Create flying block entities and register them with the animation system
+            // 短暂延迟确保方块破坏完成
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+
+            // Phase 2: 创建飞行动画
             PuzzleRain puzzleRain = PuzzleRain.getInstance();
 
             for (int i = 0; i < originalPositions.size(); i++) {
                 BlockPos targetPos = originalPositions.get(i);
                 BlockState state = originalStates.get(i);
 
-                // Calculate start position above the center of the bounds
-                Vec3d startPos = new Vec3d(
-                    bounds.getCenter().getX() + world.random.nextInt(5) - 2, // Random offset around center
-                    bounds.getCenter().getY() + 15,
-                    bounds.getCenter().getZ() + world.random.nextInt(5) - 2
+                // 计算起始位置
+                Vec3d boundsCenter = new Vec3d(
+                        bounds.getCenter().getX() + 0.5,
+                        bounds.getCenter().getY() + 0.5,
+                        bounds.getCenter().getZ() + 0.5
+                );
+
+                int xSize = bounds.getMax().getX() - bounds.getMin().getX();
+                int zSize = bounds.getMax().getZ() - bounds.getMin().getZ();
+                double spread = Math.max(xSize, zSize) * 0.6;
+
+                Vec3d startPos = boundsCenter.add(
+                        world.random.nextDouble() * spread - spread * 0.5,
+                        10 + world.random.nextDouble() * 8,
+                        world.random.nextDouble() * spread - spread * 0.5
                 );
 
                 Vec3d targetVec = new Vec3d(
-                    targetPos.getX() + 0.5,
-                    targetPos.getY() + 0.5,
-                    targetPos.getZ() + 0.5
+                        targetPos.getX() + 0.5,
+                        targetPos.getY() + 0.5,
+                        targetPos.getZ() + 0.5
                 );
 
-                // Create a temporary block to spawn the falling block entity
-                BlockPos tempPos = new BlockPos((int) startPos.x, (int) startPos.y, (int) startPos.z);
-                world.setBlockState(tempPos, state);
+                // 使用自定义实体而不是 FallingBlockEntity
+                puzzleRain.addFlyingAnimation(world, startPos, targetVec, state);
 
-                FallingBlockEntity fallingBlock = FallingBlockEntity.spawnFromBlock(world, tempPos, state);
-
-                // Remove the temporary block
-                world.breakBlock(tempPos, false);
-
-                // Configure the entity
-                fallingBlock.setPosition(startPos);
-                fallingBlock.setNoGravity(true);
-                fallingBlock.setVelocity(0, 0, 0);
-                fallingBlock.setHurtEntities(0.0f, 0);
-
-                // Register the animation with the main puzzle rain instance
-                puzzleRain.addFlyingAnimation(world, fallingBlock, startPos, targetVec, state);
+                // 分组延迟
+                if (i % 4 == 0) {
+                    try {
+                        Thread.sleep(40);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
             }
 
         } catch (Exception e) {
             throw new CompletionException("Animation failed", e);
         }
+
+
+
     }
+
 
 
 

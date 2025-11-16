@@ -47,4 +47,6 @@ public class BlockBounds {
                 (max.getY() - min.getY() + 1) *
                 (max.getZ() - min.getZ() + 1);
     }
+
+
 }

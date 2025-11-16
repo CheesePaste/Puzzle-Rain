@@ -20,6 +20,9 @@
 		],
 		"fabric-datagen": [
 			"com.puzzle_rain.PuzzleRainDataGenerator"
+		],
+		"client": [
+			"com.puzzle_rain.client.PuzzleRainClient"
 		]
 	},
 	"mixins": [

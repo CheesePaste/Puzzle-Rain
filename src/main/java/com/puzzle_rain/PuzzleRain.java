@@ -1,11 +1,12 @@
 package com.puzzle_rain;
 
 import com.puzzle_rain.command.PuzzleRainCommand;
+import com.puzzle_rain.entity.FlyingBlockEntity;
+import com.puzzle_rain.entity.ModEntities;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.BlockState;
-import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -34,6 +35,9 @@ public class PuzzleRain implements ModInitializer {
 		LOGGER.info("Puzzle Rain mod initialized!");
 		instance = this; // 设置实例
 
+		// 注册实体
+		ModEntities.initialize();
+
 		// 注册命令
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
 			PuzzleRainCommand.register(dispatcher);
@@ -58,81 +62,146 @@ public class PuzzleRain implements ModInitializer {
 		return animationTaskManager;
 	}
 
-	// Flying Block Animation System
-	public class FlyingBlockAnimation {
+	// 优化的 FlyingBlockAnimation 类，使用自定义实体
+	public static class FlyingBlockAnimation {
 		private final ServerWorld world;
-		private final FallingBlockEntity entity;
+		private final FlyingBlockEntity entity;
 		private final Vec3d startPos;
 		private final Vec3d targetPos;
 		private final BlockState blockState;
-		private double progress;
 		private final double totalDistance;
-		private final double animationDuration; // In ticks
+		private final int animationDuration;
 		private int currentTick;
 
-		public FlyingBlockAnimation(ServerWorld world, FallingBlockEntity entity, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
+		// 贝塞尔曲线控制点
+		private final Vec3d controlPoint1;
+		private final Vec3d controlPoint2;
+		private boolean hasReached = false;
+
+		public FlyingBlockAnimation(ServerWorld world, FlyingBlockEntity entity, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
 			this.world = world;
 			this.entity = entity;
 			this.startPos = startPos;
 			this.targetPos = targetPos;
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
-			this.animationDuration = Math.max(60, totalDistance * 6); // 60-300+ ticks depending on distance for smoother animation
-			this.progress = 0.0;
-			this.currentTick = 0;
+			this.animationDuration = (int) Math.max(40, totalDistance * 8); // 动画时间基于距离
 
-			// Add the entity to the world
-			world.spawnEntity(entity);
+			// 计算贝塞尔曲线控制点
+			Vec3d direction = targetPos.subtract(startPos).normalize();
+			double height = Math.max(5, totalDistance * 0.4);
+
+			this.controlPoint1 = startPos.add(direction.multiply(totalDistance * 0.3)).add(0, height, 0);
+			this.controlPoint2 = startPos.add(direction.multiply(totalDistance * 0.7)).add(0, height * 0.6, 0);
+
+			this.currentTick = 0;
 		}
 
 		public boolean update() {
-			if (entity.isRemoved()) {
+			if (entity.isRemoved() || hasReached) {
 				return false;
 			}
 
 			currentTick++;
-			progress = Math.min(1.0, (double) currentTick / animationDuration);
 
-			// Apply easing function for more natural movement (ease-in-out)
-			double easedProgress = easeInOutCubic(progress);
+			if (currentTick > animationDuration) {
+				completeAnimation();
+				return false;
+			}
 
-			// Calculate new position based on eased progress
-			double x = startPos.x + (targetPos.x - startPos.x) * easedProgress;
-			double y = startPos.y + (targetPos.y - startPos.y) * easedProgress;
-			double z = startPos.z + (targetPos.z - startPos.z) * easedProgress;
+			double progress = (double) currentTick / animationDuration;
 
-			entity.refreshPositionAfterTeleport(x, y, z);
+			// 使用缓动函数让移动更平滑
+			double easedProgress = applyEasing(progress);
 
-			// Check if we've reached the destination
-			boolean reached = progress >= 1.0;
-			if (reached) {
-				// Place the block at the target position
+			// 计算贝塞尔曲线位置
+			Vec3d newPosition = calculateCubicBezier(easedProgress);
+
+			// 直接设置位置（自定义实体不需要速度）
+			entity.setPosition(newPosition);
+
+			// 平滑旋转
+			entity.setYaw(entity.getYaw() + 6.0f);
+
+			return true;
+		}
+
+		private double applyEasing(double progress) {
+			// 三次缓动函数 - 开始和结束都很平滑
+			if (progress < 0.5) {
+				return 4 * progress * progress * progress;
+			} else {
+				return 1 - Math.pow(-2 * progress + 2, 3) / 2;
+			}
+		}
+
+		private Vec3d calculateCubicBezier(double t) {
+			double oneMinusT = 1 - t;
+			double oneMinusT2 = oneMinusT * oneMinusT;
+			double oneMinusT3 = oneMinusT2 * oneMinusT;
+			double t2 = t * t;
+			double t3 = t2 * t;
+
+			return startPos.multiply(oneMinusT3)
+					.add(controlPoint1.multiply(3 * oneMinusT2 * t))
+					.add(controlPoint2.multiply(3 * oneMinusT * t2))
+					.add(targetPos.multiply(t3));
+		}
+
+		private void completeAnimation() {
+			try {
 				int targetX = (int) Math.floor(targetPos.x);
 				int targetY = (int) Math.floor(targetPos.y);
 				int targetZ = (int) Math.floor(targetPos.z);
+				BlockPos targetBlockPos = new BlockPos(targetX, targetY, targetZ);
 
-				world.setBlockState(new BlockPos(targetX, targetY, targetZ), blockState);
-
-				// Remove the falling block entity
-				entity.discard();
+				// 确保目标位置可放置
+				if (world.getBlockState(targetBlockPos).isAir()) {
+					world.setBlockState(targetBlockPos, blockState);
+				} else {
+					// 尝试相邻位置
+					for (BlockPos nearby : new BlockPos[]{
+							targetBlockPos.up(), targetBlockPos.down(),
+							targetBlockPos.north(), targetBlockPos.south(),
+							targetBlockPos.east(), targetBlockPos.west()
+					}) {
+						if (world.getBlockState(nearby).isAir()) {
+							world.setBlockState(nearby, blockState);
+							break;
+						}
+					}
+				}
+			} catch (Exception e) {
+				PuzzleRain.LOGGER.error("Failed to place block at completion", e);
+			} finally {
+				if (!entity.isRemoved()) {
+					entity.discard();
+				}
+				hasReached = true;
 			}
-
-			return !reached;
 		}
 
-		// Easing function for smooth movement
-		private double easeInOutCubic(double t) {
-			return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
-		}
-
-		public FallingBlockEntity getEntity() {
-			return entity;
+		public FlyingBlockEntity getEntity() {
+			return this.entity;
 		}
 	}
 
-	public void addFlyingAnimation(ServerWorld world, FallingBlockEntity entity, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
-		FlyingBlockAnimation animation = new FlyingBlockAnimation(world, entity, startPos, targetPos, blockState);
+	public void addFlyingAnimation(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
+		// 创建自定义飞行方块实体
+		FlyingBlockEntity flyingBlock = new FlyingBlockEntity(world,
+				new BlockPos((int)startPos.x, (int)startPos.y, (int)startPos.z), blockState);
+
+		// 设置初始位置
+		flyingBlock.setPosition(startPos);
+
+		// 生成实体到世界
+		world.spawnEntity(flyingBlock);
+
+		// 创建并添加动画
+		FlyingBlockAnimation animation = new FlyingBlockAnimation(world, flyingBlock, startPos, targetPos, blockState);
 		flyingAnimations.add(animation);
+
+		LOGGER.debug("Created flying block animation from {} to {}", startPos, targetPos);
 	}
 
 	public void tickFlyingAnimations() {
@@ -156,5 +225,6 @@ public class PuzzleRain implements ModInitializer {
 			}
 		}
 		flyingAnimations.clear();
+		LOGGER.info("Cleared all flying animations");
 	}
 }

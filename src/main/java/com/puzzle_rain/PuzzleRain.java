@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -15,13 +16,23 @@ import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PuzzleRain implements ModInitializer {
+	// 使用队列来管理待生成的方块（线程安全）
+	private final Queue<BlockPos> pendingPositions = new ConcurrentLinkedQueue<>();
+	private final Queue<BlockState> pendingStates = new ConcurrentLinkedQueue<>();
+	public BlockBounds bounds;
 	public static final String MOD_ID = "puzzle-rain";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	public int maxcount = 500;
+
+	// 每帧最多生成的新方块数量
+	private final int maxSpawnPerTick = 8;
+
+	// 存储当前动画所在的世界
+	private ServerWorld currentWorld;
 
 	// 添加静态实例
 	private static PuzzleRain instance;
@@ -29,7 +40,7 @@ public class PuzzleRain implements ModInitializer {
 	private final AnimationTaskManager animationTaskManager = new AnimationTaskManager();
 
 	// Flying block animation fields
-	private final List<FlyingBlockAnimation> flyingAnimations = new ArrayList<>();
+	private final List<FlyingBlockAnimation> flyingAnimations = Collections.synchronizedList(new ArrayList<>());
 
 	@Override
 	public void onInitialize() {
@@ -46,7 +57,7 @@ public class PuzzleRain implements ModInitializer {
 
 		// 注册tick事件来更新飞行动画
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
-			tickFlyingAnimations();
+			tickFlyingAnimations(server);
 		});
 	}
 
@@ -61,6 +72,96 @@ public class PuzzleRain implements ModInitializer {
 
 	public AnimationTaskManager getAnimationTaskManager() {
 		return animationTaskManager;
+	}
+
+	// 在开始动画时填充待生成队列
+	public void setupAnimation(ServerWorld world, BlockBounds bounds, List<BlockPos> positions, List<BlockState> states) {
+		this.currentWorld = world;
+		this.bounds = bounds;
+
+		// 清空之前的队列和动画
+		clearFlyingAnimations();
+
+		// 填充待生成队列
+		for (int i = 0; i < positions.size(); i++) {
+			pendingPositions.offer(positions.get(i));
+			pendingStates.offer(states.get(i));
+		}
+
+		LOGGER.info("Animation setup with {} blocks to animate", positions.size());
+	}
+
+	public void tickFlyingAnimations(MinecraftServer server) {
+		// 如果没有世界或没有待处理的动画，直接返回
+		if (currentWorld == null || (pendingPositions.isEmpty() && flyingAnimations.isEmpty())) {
+			return;
+		}
+
+		// 1. 首先更新所有现有的飞行动画
+		synchronized (flyingAnimations) {
+			Iterator<FlyingBlockAnimation> iterator = flyingAnimations.iterator();
+			while (iterator.hasNext()) {
+				FlyingBlockAnimation animation = iterator.next();
+				if (!animation.update()) {
+					iterator.remove();
+				}
+			}
+		}
+
+		// 2. 如果有待生成的方块且当前飞行方块数小于maxcount，生成新的
+		int currentFlyingCount = getCurrentFlyingCount();
+		if (!pendingPositions.isEmpty() && currentFlyingCount < maxcount) {
+			int blocksToSpawn = Math.min(
+					maxSpawnPerTick, // 每帧最多生成数量
+					Math.min(
+							pendingPositions.size(), // 剩余待生成数量
+							maxcount - currentFlyingCount // 还能生成的数量
+					)
+			);
+
+			for (int i = 0; i < blocksToSpawn; i++) {
+				BlockPos targetPos = pendingPositions.poll();
+				BlockState state = pendingStates.poll();
+
+				if (targetPos == null || state == null) {
+					break;
+				}
+
+				// 计算起始位置（从区域中心上方随机位置开始）
+				Vec3d boundsCenter = new Vec3d(
+						bounds.getCenter().getX() + 0.5,
+						bounds.getCenter().getY() + 0.5,
+						bounds.getCenter().getZ() + 0.5
+				);
+
+				int xSize = bounds.getMax().getX() - bounds.getMin().getX();
+				int zSize = bounds.getMax().getZ() - bounds.getMin().getZ();
+				double spread = Math.max(xSize, zSize) * 0.6;
+
+				Random r = new Random();
+				Vec3d startPos = boundsCenter.add(
+						r.nextDouble() * spread - spread * 0.5,
+						10 + r.nextDouble() * 8,
+						r.nextDouble() * spread - spread * 0.5
+				);
+
+				Vec3d targetVec = new Vec3d(
+						targetPos.getX() + 0.5,
+						targetPos.getY() + 0.5,
+						targetPos.getZ() + 0.5
+				);
+
+				// 生成飞行方块
+				addFlyingAnimation(currentWorld, startPos, targetVec, state);
+			}
+		}
+
+		// 3. 检查动画是否完成
+		if (pendingPositions.isEmpty() && flyingAnimations.isEmpty()) {
+			LOGGER.info("Puzzle rain animation completed!");
+			// 动画完成后清除当前世界引用
+			currentWorld = null;
+		}
 	}
 
 	// 优化的 FlyingBlockAnimation 类，使用自定义实体
@@ -87,7 +188,7 @@ public class PuzzleRain implements ModInitializer {
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
 			this.animationDuration = (int) Math.max(40, totalDistance * 8); // 动画时间基于距离
-			//this.entity.blockState11=13;
+
 			// 计算贝塞尔曲线控制点
 			Vec3d direction = targetPos.subtract(startPos).normalize();
 			double height = Math.max(5, totalDistance * 0.4);
@@ -189,7 +290,6 @@ public class PuzzleRain implements ModInitializer {
 
 	public void addFlyingAnimation(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
 		// 创建自定义飞行方块实体
-
 		FlyingBlockEntity flyingBlock = new FlyingBlockEntity(world,
 				new BlockPos((int)startPos.x, (int)startPos.y, (int)startPos.z), blockState);
 
@@ -198,10 +298,11 @@ public class PuzzleRain implements ModInitializer {
 
 		flyingBlock.setBlockState(blockState);
 		flyingBlock.getDataTracker().set(FlyingBlockEntity.BLOCK_STATE_ID, Block.getRawIdFromState(blockState));
+
 		// 生成实体到世界
 		world.spawnEntity(flyingBlock);
-		//world.spawnEntityAndPassengers(flyingBlock);
 		flyingBlock.setBlockState(blockState);
+
 		// 创建并添加动画
 		FlyingBlockAnimation animation = new FlyingBlockAnimation(world, flyingBlock, startPos, targetPos, blockState);
 		flyingAnimations.add(animation);
@@ -209,21 +310,51 @@ public class PuzzleRain implements ModInitializer {
 		LOGGER.debug("Created flying block animation from {} to {}", startPos, targetPos);
 	}
 
-	public void tickFlyingAnimations() {
-        flyingAnimations.removeIf(animation -> !animation.update());
-	}
-
-	public int getFlyingAnimationCount() {
-		return flyingAnimations.size();
-	}
-
 	public void clearFlyingAnimations() {
-		for (FlyingBlockAnimation animation : flyingAnimations) {
-			if (!animation.getEntity().isRemoved()) {
-				animation.getEntity().discard();
+		// 清空待生成队列
+		pendingPositions.clear();
+		pendingStates.clear();
+
+		// 清除现有动画
+		synchronized (flyingAnimations) {
+			for (FlyingBlockAnimation animation : flyingAnimations) {
+				if (!animation.getEntity().isRemoved()) {
+					animation.getEntity().discard();
+				}
 			}
+			flyingAnimations.clear();
 		}
-		flyingAnimations.clear();
-		LOGGER.info("Cleared all flying animations");
+
+		// 清除当前世界引用
+		currentWorld = null;
+
+		LOGGER.info("Cleared all flying animations and pending blocks");
+	}
+
+	// 添加获取状态的方法
+	public int getPendingBlockCount() {
+		return pendingPositions.size();
+	}
+
+	public int getCurrentFlyingCount() {
+		synchronized (flyingAnimations) {
+			return flyingAnimations.size();
+		}
+	}
+
+	public boolean isAnimationComplete() {
+		return pendingPositions.isEmpty() && getCurrentFlyingCount() == 0;
+	}
+
+	// 获取动画进度
+	public float getAnimationProgress() {
+		int total = getPendingBlockCount() + getCurrentFlyingCount();
+		if (total == 0) return 1.0f;
+		return 1.0f - (float)getPendingBlockCount() / total;
+	}
+
+	// 获取当前动画所在的世界
+	public ServerWorld getCurrentWorld() {
+		return currentWorld;
 	}
 }

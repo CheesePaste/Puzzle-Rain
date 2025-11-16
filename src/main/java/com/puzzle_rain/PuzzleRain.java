@@ -3,11 +3,17 @@ package com.puzzle_rain;
 import com.puzzle_rain.command.PuzzleRainCommand;
 import com.puzzle_rain.entity.FlyingBlockEntity;
 import com.puzzle_rain.entity.ModEntities;
+import me.shedaniel.autoconfig.AutoConfig;
+import me.shedaniel.autoconfig.ConfigHolder;
+import me.shedaniel.autoconfig.gui.registry.GuiRegistry;
+import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -15,6 +21,8 @@ import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -54,6 +62,23 @@ public class PuzzleRain implements ModInitializer {
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			tickFlyingAnimations();
 		});
+
+
+
+		GuiRegistry registry = AutoConfig.getGuiRegistry(ModConfig.class);
+		KeyBindings.register();
+		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
+		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			while (KeyBindings.openConfigKey.wasPressed()) {
+				RegionManager.getInstance().setFirstPosition(client.player,config.StartPos.ToBP());
+				RegionManager.getInstance().setSecondPosition(client.player,config.StartPos.ToBP());
+				if (client.player != null) {
+					client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
+				}
+			}
+		});
+
+
 	}
 
 	// 添加获取实例的方法
@@ -93,7 +118,7 @@ public class PuzzleRain implements ModInitializer {
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
 			this.animationDuration = (int) Math.max(40, totalDistance * 8); // 动画时间基于距离
-
+			//this.entity.blockState11=13;
 			// 计算贝塞尔曲线控制点
 			Vec3d direction = targetPos.subtract(startPos).normalize();
 			double height = Math.max(5, totalDistance * 0.4);

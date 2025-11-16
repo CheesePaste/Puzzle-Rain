@@ -1,5 +1,7 @@
 package com.puzzle_rain;
 
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 
@@ -39,15 +41,16 @@ public class RegionManager {
         }
     }
 
-    public void setFirstPosition(ServerPlayerEntity player, BlockPos pos) {
+    public void setFirstPosition(PlayerEntity player, BlockPos pos) {
         if (player == null) return;
+
 
         String playerId = player.getUuid().toString();
         PlayerRegion region = playerRegions.computeIfAbsent(playerId, k -> new PlayerRegion());
         region.pos1 = pos;
     }
 
-    public void setSecondPosition(ServerPlayerEntity player, BlockPos pos) {
+    public void setSecondPosition(PlayerEntity player, BlockPos pos) {
         if (player == null) return;
 
         String playerId = player.getUuid().toString();

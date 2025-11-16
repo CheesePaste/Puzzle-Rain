@@ -1,5 +1,7 @@
 package com.puzzle_rain.entity;
 
+import com.puzzle_rain.PuzzleRain;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -14,7 +16,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 public class FlyingBlockEntity extends Entity {
-    private BlockState blockState;
+    public int blockState11=11;
     private int age = 0;
     private int maxAge = 20000; // 10秒后自动消失，防止内存泄漏
 
@@ -29,24 +31,27 @@ public class FlyingBlockEntity extends Entity {
 
     }
 
+
     public FlyingBlockEntity(World world, BlockPos pos, BlockState blockState) {
-        this(ModEntities.FLYING_BLOCK_ENTITY, world);
+
+        super(ModEntities.FLYING_BLOCK_ENTITY, world);
         this.setPosition(Vec3d.ofCenter(pos));
-        this.blockState = blockState;
+        this.blockState11 = Block.getRawIdFromState(blockState);
     }
 
     public void setBlockState(BlockState blockState) {
-        this.blockState = blockState;
+        this.blockState11 = Block.getRawIdFromState(blockState);
     }
 
     public BlockState getBlockState() {
-        return blockState;
+        return Block.getStateFromRawId(this.blockState11);
     }
 
     @Override
     public void tick() {
         super.tick();
         this.age++;
+
 
         // 自动移除旧实体防止内存泄漏
         if (this.age > maxAge) {
@@ -63,13 +68,13 @@ public class FlyingBlockEntity extends Entity {
 
 
     @Override
-    protected void readCustomDataFromNbt(NbtCompound nbt) {
-        // 不需要序列化，因为这只是临时动画实体
+    public void writeCustomDataToNbt(NbtCompound nbt) {
+
     }
 
     @Override
-    protected void writeCustomDataToNbt(NbtCompound nbt) {
-        // 不需要序列化
+    public void readCustomDataFromNbt(NbtCompound nbt) {
+
     }
 
 

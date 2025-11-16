@@ -86,7 +86,7 @@ public class PuzzleRain implements ModInitializer {
 			this.blockState = blockState;
 			this.totalDistance = startPos.distanceTo(targetPos);
 			this.animationDuration = (int) Math.max(40, totalDistance * 8); // 动画时间基于距离
-
+			//this.entity.blockState11=13;
 			// 计算贝塞尔曲线控制点
 			Vec3d direction = targetPos.subtract(startPos).normalize();
 			double height = Math.max(5, totalDistance * 0.4);
@@ -188,15 +188,18 @@ public class PuzzleRain implements ModInitializer {
 
 	public void addFlyingAnimation(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
 		// 创建自定义飞行方块实体
+
 		FlyingBlockEntity flyingBlock = new FlyingBlockEntity(world,
 				new BlockPos((int)startPos.x, (int)startPos.y, (int)startPos.z), blockState);
 
 		// 设置初始位置
 		flyingBlock.setPosition(startPos);
 
+		flyingBlock.setBlockState(blockState);
 		// 生成实体到世界
-		world.spawnEntity(flyingBlock);
-
+		//world.spawnEntity(flyingBlock);
+		world.spawnEntityAndPassengers(flyingBlock);
+		flyingBlock.setBlockState(blockState);
 		// 创建并添加动画
 		FlyingBlockAnimation animation = new FlyingBlockAnimation(world, flyingBlock, startPos, targetPos, blockState);
 		flyingAnimations.add(animation);

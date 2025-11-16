@@ -10,6 +10,7 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -85,10 +86,11 @@ public class BlockTransitionTask {
                 int zSize = bounds.getMax().getZ() - bounds.getMin().getZ();
                 double spread = Math.max(xSize, zSize) * 0.6;
 
+                Random r = new Random();
                 Vec3d startPos = boundsCenter.add(
-                        world.random.nextDouble() * spread - spread * 0.5,
-                        10 + world.random.nextDouble() * 8,
-                        world.random.nextDouble() * spread - spread * 0.5
+                        r.nextDouble() * spread - spread * 0.5,
+                        10 + r.nextDouble() * 8,
+                        r.nextDouble() * spread - spread * 0.5
                 );
 
                 Vec3d targetVec = new Vec3d(
@@ -96,6 +98,7 @@ public class BlockTransitionTask {
                         targetPos.getY() + 0.5,
                         targetPos.getZ() + 0.5
                 );
+
 
                 // 使用自定义实体而不是 FallingBlockEntity
                 puzzleRain.addFlyingAnimation(world, startPos, targetVec, state);

@@ -29,6 +29,7 @@ public class PuzzleRain implements ModInitializer {
 	public static final String MOD_ID = "puzzle-rain";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+
 	// 添加静态实例
 	private static PuzzleRain instance;
 
@@ -150,71 +151,53 @@ public class PuzzleRain implements ModInitializer {
 		}
 
 		private void velocityControl() {
-			if (entity.getPos().isWithinRangeOf(targetPos, 0.01, 0.01)) {
+			if (entity.getPos().isWithinRangeOf(targetPos, 0.01,0.01)) {
 				entity.setVelocity(0, 0, 0);
 				return;
 			}
 
-			// 计算剩余距离
-			double remainingDistance = entity.getPos().distanceTo(targetPos);
-
-			// 计算剩余时间（基于总持续时间和当前进度）
 			int remainingTicks = animationDuration - currentTick;
-
-			// 如果已经接近终点或剩余时间很少，直接设置到目标位置
-			if (remainingDistance < 0.1 || remainingTicks <= 1) {
+			if (remainingTicks <= 1) {
 				entity.setPosition(targetPos);
 				entity.setVelocity(0, 0, 0);
 				return;
 			}
 
-			// 计算主运动方向（指向目标）
-			Vec3d toTarget = targetPos.subtract(entity.getPos());
-			Vec3d mainDirection = toTarget.normalize();
+			Vec3d currentPos = entity.getPos();
+			Vec3d toTarget = targetPos.subtract(currentPos);
+			double remainingDistance = toTarget.length();
 
-			// 计算主速度（距离/时间）
-			double mainSpeed = remainingDistance / remainingTicks;
-
-			// 计算螺旋运动参数
-			double progress = (double) currentTick / animationDuration;
-
-			// 螺旋半径随时间减小（开始时最大，结束时为0）
-			double maxRadius = config.maxRadius; // 最大螺旋半径
-			double currentRadius = maxRadius * (1 - progress);
-
-			// 螺旋角速度（可以调整这个值来改变螺旋的紧密程度）
-			double angularSpeed = 2.0 * Math.PI * config.omega; // 每秒2圈
-
-			// 计算法向速度方向
-			// 需要一个垂直于主方向的向量作为基准
-			Vec3d normalBase;
-			if (Math.abs(mainDirection.y) < 0.9) {
-				// 如果主方向不是垂直的，使用与主方向和垂直方向都垂直的向量
-				normalBase = mainDirection.crossProduct(new Vec3d(0, 1, 0)).normalize();
-			} else {
-				// 如果主方向接近垂直，使用水平方向作为基准
-				normalBase = new Vec3d(1, 0, 0);
+			if (remainingDistance < 0.1) {
+				entity.setPosition(targetPos);
+				entity.setVelocity(0, 0, 0);
+				return;
 			}
 
-			// 计算当前的法向方向（随时间旋转）
-			double angle = angularSpeed * progress;
-			Vec3d normalDirection = normalBase.rotateY((float) angle);
+			// 主速度（指向目标）
+			Vec3d mainDirection = toTarget.normalize();
+			double mainSpeed = remainingDistance / remainingTicks;
+			Vec3d mainVelocity = mainDirection.multiply(mainSpeed);
 
-			// 确保法向方向与主方向垂直
-			normalDirection = normalDirection.subtract(mainDirection.multiply(normalDirection.dotProduct(mainDirection))).normalize();
+			// 螺旋参数：半径随时间线性减小到0
+			double progress = (double) currentTick / animationDuration;
+			double currentRadius = config.maxRadius * (1 - progress);
+			double angularSpeed = 2.0 * Math.PI * config.omega; // 角速度（弧度/刻）
+			double angle = angularSpeed * currentTick; // 当前角度
 
-			// 计算法向速度大小（与半径和角速度相关）
-			double normalSpeed = currentRadius * angularSpeed / animationDuration;
+			// 构建垂直于运动方向的平面基向量
+			Vec3d referenceVec = Math.abs(mainDirection.y) < 0.9 ?
+					new Vec3d(0, 1, 0) :
+					new Vec3d(1, 0, 0);
+			Vec3d basis1 = mainDirection.crossProduct(referenceVec).normalize();
+			Vec3d basis2 = mainDirection.crossProduct(basis1).normalize();
+
+			// 法向速度（圆周运动）：v = r × ω
+			double normalSpeed = currentRadius * angularSpeed;
+			Vec3d normalVelocity = basis1.multiply(Math.cos(angle) * normalSpeed)
+					.add(basis2.multiply(Math.sin(angle) * normalSpeed));
 
 			// 合成速度 = 主速度 + 法向速度
-			Vec3d mainVelocity = mainDirection.multiply(mainSpeed);
-			Vec3d normalVelocity = normalDirection.multiply(normalSpeed);
-			Vec3d totalVelocity = mainVelocity.add(normalVelocity);
-
-			// 设置速度
-			entity.setVelocity(totalVelocity);
-
-			// 可选：添加旋转效果
+			entity.setVelocity(mainVelocity.add(normalVelocity));
 			entity.setYaw(entity.getYaw() + 10.0f);
 		}
 

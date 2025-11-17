@@ -243,7 +243,7 @@ private void performAnimation() {
         }
 
         // 定义方向向量（例如：从西南向东北方向）
-        Vec3d direction = new Vec3d(1, 0, 1).normalize(); // 可以修改这个向量来改变排序方向
+        Vec3d direction = new Vec3d(0, 1, 0).normalize(); // 可以修改这个向量来改变排序方向
 
         // 按照方向向量的投影距离排序
         blockInfos.sort((info1, info2) -> {
@@ -269,11 +269,17 @@ private void performAnimation() {
             double spread = Math.max(xSize, zSize) * 0.6*PuzzleRain.config.factor_spread;
 
             Random r = new Random();
-            Vec3d startPos = boundsCenter.add(
-                    r.nextDouble() * spread - spread * 0.5,
-                    10 + r.nextDouble() * 8,
-                    r.nextDouble() * spread - spread * 0.5
-            );
+            Vec3d startPos;
+            if(PuzzleRain.config.usespecificPos){
+                startPos= new Vec3d(PuzzleRain.config.specificPosX,PuzzleRain.config.specificPosY,PuzzleRain.config.specificPosZ);
+            }else{
+                startPos = boundsCenter.add(
+                        r.nextDouble() * spread - spread * 0.5,
+                        10 + r.nextDouble() * 8,
+                        r.nextDouble() * spread - spread * 0.5
+                );
+            }
+
 
             Vec3d targetVec = new Vec3d(
                     targetPos.getX() + 0.5,

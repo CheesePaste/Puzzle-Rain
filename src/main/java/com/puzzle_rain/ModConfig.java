@@ -25,6 +25,10 @@ public class ModConfig implements ConfigData {
     public float factor = 0.2f;
     public List<V3> EmitterPoints=new ArrayList<>();
     public float factor_spread=5f;
+    public boolean usespecificPos=true;
+    public int specificPosX;
+    public int specificPosY;
+    public double specificPosZ;
 
     static class V3{
         public int x,y,z;

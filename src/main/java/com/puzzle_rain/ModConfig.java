@@ -11,8 +11,12 @@ import java.util.List;
 @Config(name = "puzzle-rain")
 public class ModConfig implements ConfigData {
 
-    public BlockPos StartPos;
-    public BlockPos EndPos;
+    public int startPosX;
+    public int startPosY;
+    public int startPosZ;
+    public int endPosX;
+    public int endPosY;
+    public int endPosZ;
 
     public float factor = 0.2f;
     public List<V3> EmitterPoints=new ArrayList<>();

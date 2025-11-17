@@ -13,7 +13,6 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -21,8 +20,6 @@ import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -43,8 +40,8 @@ public class PuzzleRain implements ModInitializer {
 	private final ArrayList<FlyingBlockAnimation> activeAnimations = new ArrayList<>();
 
 	// 配置参数
-	private static final int MAX_CONCURRENT_FLYING_BLOCKS = 600; // 最大同时飞行方块数
-	private static final int MAX_SPAWN_PER_TICK = 5; // 每帧最多生成新方块数
+	private static final int MAX_CONCURRENT_FLYING_BLOCKS = 4000; // 最大同时飞行方块数
+	private static final int MAX_SPAWN_PER_TICK = 400; // 每帧最多生成新方块数
 
 	public static ConfigHolder ch = AutoConfig.register(ModConfig.class, GsonConfigSerializer::new);
 	@Override
@@ -72,8 +69,8 @@ public class PuzzleRain implements ModInitializer {
 		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (KeyBindings.openConfigKey.wasPressed()) {
-				RegionManager.getInstance().setFirstPosition(client.player,config.StartPos);
-				RegionManager.getInstance().setSecondPosition(client.player,config.EndPos);
+				RegionManager.getInstance().setFirstPosition(client.player,new BlockPos(config.startPosX,config.startPosY,config.startPosZ));
+				RegionManager.getInstance().setSecondPosition(client.player,new BlockPos(config.endPosX,config.endPosY,config.endPosZ));
 				if (client.player != null) {
 					client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
 				}
@@ -225,18 +222,7 @@ public class PuzzleRain implements ModInitializer {
 	}
 
 	// 动画请求类
-	private static class AnimationRequest {
-		public final ServerWorld world;
-		public final Vec3d startPos;
-		public final Vec3d targetPos;
-		public final BlockState blockState;
-
-		public AnimationRequest(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
-			this.world = world;
-			this.startPos = startPos;
-			this.targetPos = targetPos;
-			this.blockState = blockState;
-		}
+		private record AnimationRequest(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {
 	}
 
 	public void addFlyingAnimation(ServerWorld world, Vec3d startPos, Vec3d targetPos, BlockState blockState) {

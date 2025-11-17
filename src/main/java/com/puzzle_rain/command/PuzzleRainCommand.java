@@ -41,6 +41,9 @@ public class PuzzleRainCommand {
         BlockPos pos = player.getBlockPos();
         RegionManager.getInstance().setFirstPosition(player, pos);
 
+        PuzzleRain.config.startPosX=pos.getX();
+        PuzzleRain.config.startPosY=pos.getY();
+        PuzzleRain.config.startPosZ=pos.getZ();
         context.getSource().sendFeedback(() -> Text.literal("First position set to " + pos.toShortString()), false);
         return 1;
     }
@@ -52,6 +55,9 @@ public class PuzzleRainCommand {
         BlockPos pos = BlockPosArgumentType.getBlockPos(context, "position");
         RegionManager.getInstance().setFirstPosition(player, pos);
 
+        PuzzleRain.config.startPosX=pos.getX();
+        PuzzleRain.config.startPosY=pos.getY();
+        PuzzleRain.config.startPosZ=pos.getZ();
         context.getSource().sendFeedback(() -> Text.literal("First position set to " + pos.toShortString()), false);
         return 1;
     }
@@ -63,6 +69,9 @@ public class PuzzleRainCommand {
         BlockPos pos = player.getBlockPos();
         RegionManager.getInstance().setSecondPosition(player, pos);
 
+        PuzzleRain.config.endPosX=pos.getX();
+        PuzzleRain.config.endPosY=pos.getY();
+        PuzzleRain.config.endPosZ=pos.getZ();
         context.getSource().sendFeedback(() -> Text.literal("Second position set to " + pos.toShortString()), false);
         return 1;
     }
@@ -73,6 +82,9 @@ public class PuzzleRainCommand {
 
         BlockPos pos = BlockPosArgumentType.getBlockPos(context, "position");
         RegionManager.getInstance().setSecondPosition(player, pos);
+        PuzzleRain.config.endPosX=pos.getX();
+        PuzzleRain.config.endPosY=pos.getY();
+        PuzzleRain.config.endPosZ=pos.getZ();
 
         context.getSource().sendFeedback(() -> Text.literal("Second position set to " + pos.toShortString()), false);
         return 1;

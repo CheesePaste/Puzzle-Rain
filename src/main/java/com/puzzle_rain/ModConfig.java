@@ -18,6 +18,10 @@ public class ModConfig implements ConfigData {
     public int endPosY;
     public int endPosZ;
 
+    public ControlEnum controlType = ControlEnum.Velocity_roll;
+    public double maxRadius=5;
+    public double omega=5;
+
     public float factor = 0.2f;
     public List<V3> EmitterPoints=new ArrayList<>();
     public float factor_spread=5f;

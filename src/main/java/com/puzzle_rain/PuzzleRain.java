@@ -140,6 +140,85 @@ public class PuzzleRain implements ModInitializer {
 				return false;
 			}
 
+			switch (config.controlType){
+				case Velocity_roll -> velocityControl();
+
+				default -> defaultControl();
+			}
+
+			return true;
+		}
+
+		private void velocityControl() {
+			if (entity.getPos().isWithinRangeOf(targetPos, 0.01, 0.01)) {
+				entity.setVelocity(0, 0, 0);
+				return;
+			}
+
+			// 计算剩余距离
+			double remainingDistance = entity.getPos().distanceTo(targetPos);
+
+			// 计算剩余时间（基于总持续时间和当前进度）
+			int remainingTicks = animationDuration - currentTick;
+
+			// 如果已经接近终点或剩余时间很少，直接设置到目标位置
+			if (remainingDistance < 0.1 || remainingTicks <= 1) {
+				entity.setPosition(targetPos);
+				entity.setVelocity(0, 0, 0);
+				return;
+			}
+
+			// 计算主运动方向（指向目标）
+			Vec3d toTarget = targetPos.subtract(entity.getPos());
+			Vec3d mainDirection = toTarget.normalize();
+
+			// 计算主速度（距离/时间）
+			double mainSpeed = remainingDistance / remainingTicks;
+
+			// 计算螺旋运动参数
+			double progress = (double) currentTick / animationDuration;
+
+			// 螺旋半径随时间减小（开始时最大，结束时为0）
+			double maxRadius = config.maxRadius; // 最大螺旋半径
+			double currentRadius = maxRadius * (1 - progress);
+
+			// 螺旋角速度（可以调整这个值来改变螺旋的紧密程度）
+			double angularSpeed = 2.0 * Math.PI * config.omega; // 每秒2圈
+
+			// 计算法向速度方向
+			// 需要一个垂直于主方向的向量作为基准
+			Vec3d normalBase;
+			if (Math.abs(mainDirection.y) < 0.9) {
+				// 如果主方向不是垂直的，使用与主方向和垂直方向都垂直的向量
+				normalBase = mainDirection.crossProduct(new Vec3d(0, 1, 0)).normalize();
+			} else {
+				// 如果主方向接近垂直，使用水平方向作为基准
+				normalBase = new Vec3d(1, 0, 0);
+			}
+
+			// 计算当前的法向方向（随时间旋转）
+			double angle = angularSpeed * progress;
+			Vec3d normalDirection = normalBase.rotateY((float) angle);
+
+			// 确保法向方向与主方向垂直
+			normalDirection = normalDirection.subtract(mainDirection.multiply(normalDirection.dotProduct(mainDirection))).normalize();
+
+			// 计算法向速度大小（与半径和角速度相关）
+			double normalSpeed = currentRadius * angularSpeed / animationDuration;
+
+			// 合成速度 = 主速度 + 法向速度
+			Vec3d mainVelocity = mainDirection.multiply(mainSpeed);
+			Vec3d normalVelocity = normalDirection.multiply(normalSpeed);
+			Vec3d totalVelocity = mainVelocity.add(normalVelocity);
+
+			// 设置速度
+			entity.setVelocity(totalVelocity);
+
+			// 可选：添加旋转效果
+			entity.setYaw(entity.getYaw() + 10.0f);
+		}
+
+		private void defaultControl() {
 			double progress = (double) currentTick / animationDuration;
 
 			// 使用缓动函数让移动更平滑
@@ -153,8 +232,6 @@ public class PuzzleRain implements ModInitializer {
 
 			// 平滑旋转
 			entity.setYaw(entity.getYaw() + 6.0f);
-
-			return true;
 		}
 
 		private double applyEasing(double progress) {

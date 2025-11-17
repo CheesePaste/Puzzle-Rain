@@ -1,5 +1,6 @@
 package com.puzzle_rain.entity;
 
+import com.puzzle_rain.ControlEnum;
 import com.puzzle_rain.PuzzleRain;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -28,6 +29,7 @@ public class FlyingBlockEntity extends Entity {
         super(type, world);
         this.noClip = true;
         this.setNoGravity(true);
+
     }
 
     @Override
@@ -42,12 +44,39 @@ public class FlyingBlockEntity extends Entity {
     }
 
 
+
+    @Override
+    protected void pushOutOfBlocks(double x, double y, double z) {
+
+    }
+
+    @Override
+    protected void onBlockCollision(BlockState state) {
+
+    }
+
+    @Override
+    public boolean collidesWith(Entity other) {
+        return false;
+    }
+
+    @Override
+    public boolean canMoveVoluntarily() {
+        return true;
+    }
+
+    @Override
+    public boolean collidesWithStateAtPos(BlockPos pos, BlockState state) {
+        return false;
+    }
+
     public FlyingBlockEntity(World world, BlockPos pos, BlockState blockState) {
 
         super(ModEntities.FLYING_BLOCK_ENTITY, world);
         this.setPosition(Vec3d.ofCenter(pos));
         this.blockState11 = Block.getRawIdFromState(blockState);
         this.dataTracker.set(BLOCK_STATE_ID,Block.getRawIdFromState(blockState));
+        this.noClip=true;
     }
 
     public void setBlockState(BlockState blockState) {
@@ -58,6 +87,21 @@ public class FlyingBlockEntity extends Entity {
         }
     }
 
+
+    @Override
+    protected void checkBlockCollision() {
+        // 留空，不执行方块碰撞检测
+    }
+
+    @Override
+    protected Vec3d adjustMovementForPiston(Vec3d movement) {
+        return movement;
+    }
+
+    @Override
+    protected Vec3d adjustMovementForSneaking(Vec3d movement, MovementType type) {
+        return movement;
+    }
 
     @Override
     public void writeCustomDataToNbt(NbtCompound nbt) {
@@ -107,6 +151,11 @@ public class FlyingBlockEntity extends Entity {
     @Override
     public boolean isCollidable() {
         return false; // 没有碰撞
+    }
+
+    @Override
+    public void pushAwayFrom(Entity entity) {
+        // 留空不执行任何推开逻辑
     }
 
     @Override

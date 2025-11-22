@@ -3,6 +3,8 @@ package com.puzzle_rain;
 import com.jcraft.jorbis.Block;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -29,6 +31,9 @@ public class ModConfig implements ConfigData {
     public int specificPosX;
     public int specificPosY;
     public double specificPosZ;
+    public List<String>ignoreBlocks=List.of(
+            Registries.BLOCK.getId(Blocks.AIR).getPath()
+    );
 
     static class V3{
         public int x,y,z;

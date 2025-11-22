@@ -1,9 +1,12 @@
 package com.puzzle_rain;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.FallingBlockEntity;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
@@ -32,9 +35,16 @@ public class BlockTransitionTask {
         // 获取非空气方块位置
         this.nonAirPositions = new ArrayList<>();
         for (BlockPos pos : allPositions) {
-            if (!world.getBlockState(pos).isAir()) {
-                nonAirPositions.add(pos);
+            if(PuzzleRain.config.ignoreBlocks.stream().anyMatch(
+                    i->{
+                        return world.getBlockState(pos).getBlock()== Registries.BLOCK.get(Identifier.of(i));
+                    }
+            )){
+                continue;
             }
+
+            nonAirPositions.add(pos);
+
         }
     }
 

@@ -13,7 +13,9 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -76,9 +78,52 @@ public class PuzzleRain implements ModInitializer {
 					client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
 				}
 			}
+			while (KeyBindings.addEmitterPointKey.wasPressed()){
+				addPlayerPositionToEmitterPoints(client.player);
+			}
 		});
 
 
+	}
+
+	private static void addPlayerPositionToEmitterPoints(ClientPlayerEntity player) {
+		if (config == null) {
+			LOGGER.warn("Config is not initialized");
+			return;
+		}
+
+		// 获取玩家当前位置
+		BlockPos playerPos = player.getBlockPos();
+		ModConfig.V3 newPoint = new ModConfig.V3();
+		newPoint.x = playerPos.getX();
+		newPoint.y = playerPos.getY();
+		newPoint.z = playerPos.getZ();
+
+		// 添加到EmitterPoints列表
+		if (config.EmitterPoints == null) {
+			config.EmitterPoints = new ArrayList<>();
+		}
+		if (config.EmitterPoints.stream().anyMatch(
+				i->{
+					return i.x==newPoint.x&&i.y== newPoint.y&&i.z== newPoint.z;
+				}
+		)){
+			player.sendMessage(Text.literal("发射点: " + playerPos+" 已经添加"), false);
+			return;
+		}
+		config.EmitterPoints.add(newPoint);
+
+		// 保存配置
+		try {
+			AutoConfig.getConfigHolder(ModConfig.class).save();
+			LOGGER.info("Added emitter point at: " + playerPos);
+
+			// 给玩家反馈
+			player.sendMessage(Text.literal("已添加发射点: " + playerPos), false);
+		} catch (Exception e) {
+			LOGGER.error("Failed to save config after adding emitter point", e);
+			player.sendMessage(Text.literal("添加发射点失败"), false);
+		}
 	}
 
 	// 添加获取实例的方法

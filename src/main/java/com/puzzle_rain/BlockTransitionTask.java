@@ -289,6 +289,7 @@ private void performAnimation() {
         }
 
         // 按排序后的顺序添加动画
+        Random r = new Random();
         for (int i = 0; i < blockInfos.size(); i++) {
             BlockPos targetPos = blockInfos.get(i).pos;
             BlockState state = blockInfos.get(i).state;
@@ -304,10 +305,10 @@ private void performAnimation() {
             int zSize = bounds.getMax().getZ() - bounds.getMin().getZ();
             double spread = Math.max(xSize, zSize) * 0.6*PuzzleRain.config.factor_spread;
 
-            Random r = new Random();
+
             Vec3d startPos;
-            if(PuzzleRain.config.usespecificPos){
-                startPos= PuzzleRain.config.specificPos.ToVec3d();
+            if(PuzzleRain.config.usespecificPos&& !PuzzleRain.config.EmitterPoints.isEmpty()){
+                startPos= PuzzleRain.config.EmitterPoints.get(r.nextInt(PuzzleRain.config.EmitterPoints.size())).ToVec3d();
             }else{
                 startPos = boundsCenter.add(
                         r.nextDouble() * spread - spread * 0.5,

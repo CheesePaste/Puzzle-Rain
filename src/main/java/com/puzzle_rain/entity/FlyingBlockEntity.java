@@ -18,10 +18,15 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class FlyingBlockEntity extends Entity {
     public int blockState11=11;
-    private int age = 0;
+    int age = 0;
     private int maxAge = 20000; // 1000秒后自动消失，防止内存泄漏
+    private final List<Vec3d> trailPositions = new ArrayList<>();
+    private static final int MAX_TRAIL_LENGTH = 25;
 
     public static final TrackedData<Integer> BLOCK_STATE_ID = DataTracker.registerData(FlyingBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
@@ -30,6 +35,16 @@ public class FlyingBlockEntity extends Entity {
         this.noClip = true;
         this.setNoGravity(true);
 
+    }
+
+    private void updateTrail() {
+        // 添加当前位置到轨迹
+        trailPositions.add(0, this.getPos());
+
+        // 限制轨迹长度
+        while (trailPositions.size() > MAX_TRAIL_LENGTH) {
+            trailPositions.remove(trailPositions.size() - 1);
+        }
     }
 
     @Override
@@ -119,10 +134,31 @@ public class FlyingBlockEntity extends Entity {
         return Block.getStateFromRawId(this.dataTracker.get(BLOCK_STATE_ID));
     }
 
+
+    public List<Vec3d> getTrailPositions() {
+        return trailPositions;
+    }
+
+    // 基于速度预测轨迹
+    public List<Vec3d> getPredictedTrail(float deltaTime, int steps) {
+        List<Vec3d> predicted = new ArrayList<>();
+        Vec3d currentPos = this.getPos();
+        Vec3d velocity = this.getVelocity();
+
+        for (int i = 0; i < steps; i++) {
+            float time = i * deltaTime;
+            Vec3d predictedPos = currentPos.add(velocity.multiply(time));
+            predicted.add(predictedPos);
+        }
+
+        return predicted;
+    }
+
     @Override
     public void tick() {
         super.tick();
         this.age++;
+        updateTrail();
 
 
         // 自动移除旧实体防止内存泄漏

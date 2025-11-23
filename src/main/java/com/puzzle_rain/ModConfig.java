@@ -37,7 +37,9 @@ public class ModConfig implements ConfigData {
     public boolean useAutoCenterPoint=true;
 
     public V3 Dir=new V3();
-
+    public float spherefactor=5;
+    public boolean useEnergyField=false;
+    public int interpolationSteps=3;
 
 
     public static class V3{

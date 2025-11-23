@@ -41,6 +41,7 @@ public class ModConfig implements ConfigData {
     public boolean useEnergyField=false;
     public int interpolationSteps=3;
     public boolean useBlockTrail=false;
+    public int groupDelay=40;
 
 
     public static class V3{

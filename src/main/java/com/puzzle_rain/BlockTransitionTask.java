@@ -325,7 +325,7 @@ private void performAnimation() {
             puzzleRain.addFlyingAnimation(world, startPos, targetVec, state);
 
             // 分组延迟，避免一次性生成太多请求
-            if (i % 4 == 0) {
+            if (i % PuzzleRain.config.groupDelay == 0) {
                 try {
                     Thread.sleep(20); // 减少延迟时间，因为现在有队列控制
                 } catch (InterruptedException e) {

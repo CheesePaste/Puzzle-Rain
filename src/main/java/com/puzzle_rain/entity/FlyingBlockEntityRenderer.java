@@ -44,7 +44,7 @@ public class FlyingBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity>
         //matrices.translate(-0.5, 0.0, -0.5);
         renderTrail(entity,matrices,vertexConsumers,tickDelta);
         matrices.push();
-        //renderBlockTrail(entity,blockState,matrices,vertexConsumers,tickDelta,light);
+        if(PuzzleRain.config.useBlockTrail) renderBlockTrail(entity,blockState,matrices,vertexConsumers,tickDelta,light);
         //renderEnergyField(entity,matrices,vertexConsumers,tickDelta);
         BlockRenderManager blockRenderManager = MinecraftClient.getInstance().getBlockRenderManager();
         matrices.push();

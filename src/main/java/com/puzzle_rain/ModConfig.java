@@ -40,6 +40,7 @@ public class ModConfig implements ConfigData {
     public float spherefactor=5;
     public boolean useEnergyField=false;
     public int interpolationSteps=3;
+    public boolean useBlockTrail=false;
 
 
     public static class V3{

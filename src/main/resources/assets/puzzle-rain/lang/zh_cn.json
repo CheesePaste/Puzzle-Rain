@@ -1,3 +1,18 @@
 {
-
+  "text.autoconfig.puzzle-rain.title": "配置",
+  "text.autoconfig.puzzle-rain.option.startPos": "起始坐标",
+  "text.autoconfig.puzzle-rain.option.endPos": "结束坐标",
+  "text.autoconfig.puzzle-rain.option.controlType": "控制类型",
+  "text.autoconfig.puzzle-rain.option.maxRadius": "最大半径",
+  "text.autoconfig.puzzle-rain.option.omega": "角速度",
+  "text.autoconfig.puzzle-rain.option.factor": "因子",
+  "text.autoconfig.puzzle-rain.option.EmitterPoints": "发射点列表",
+  "text.autoconfig.puzzle-rain.option.factor_spread": "扩散因子",
+  "text.autoconfig.puzzle-rain.option.usespecificPos": "使用特定位置",
+  "text.autoconfig.puzzle-rain.option.specificPos": "特定位置",
+  "text.autoconfig.puzzle-rain.option.ignoreBlocks": "忽略的方块",
+  "text.autoconfig.puzzle-rain.option.useCenterPoint": "使用中心点",
+  "text.autoconfig.puzzle-rain.option.useReverse": "使用反向",
+  "text.autoconfig.puzzle-rain.option.useAutoCenterPoint": "使用自动中心点",
+  "text.autoconfig.puzzle-rain.option.Dir": "方向OR中心点"
 }

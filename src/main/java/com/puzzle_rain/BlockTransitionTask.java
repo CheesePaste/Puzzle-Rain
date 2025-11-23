@@ -21,6 +21,7 @@ public class BlockTransitionTask {
     private final List<BlockPos> allPositions;
     private final List<BlockPos> nonAirPositions;
 
+    private BlockPos center;
     private final String taskId;
 
     private BlockTransitionTask(ServerWorld world, BlockBounds bounds, String taskId) {
@@ -34,18 +35,27 @@ public class BlockTransitionTask {
 
         // 获取非空气方块位置
         this.nonAirPositions = new ArrayList<>();
+        int count = 0;
+        double avgX = 0, avgY = 0, avgZ = 0;
+
         for (BlockPos pos : allPositions) {
-            if(PuzzleRain.config.ignoreBlocks.stream().anyMatch(
-                    i->{
-                        return world.getBlockState(pos).getBlock()== Registries.BLOCK.get(Identifier.of(i));
-                    }
-            )){
+            if (PuzzleRain.config.ignoreBlocks.stream().anyMatch(
+                    i -> world.getBlockState(pos).getBlock() == Registries.BLOCK.get(Identifier.of(i)))) {
                 continue;
             }
 
-            nonAirPositions.add(pos);
+            count++;
+            // 增量更新平均值: new_avg = old_avg + (new_value - old_avg) / count
+            avgX += (pos.getX() - avgX) / count;
+            avgY += (pos.getY() - avgY) / count;
+            avgZ += (pos.getZ() - avgZ) / count;
 
+            nonAirPositions.add(pos);
         }
+
+        center = count > 0 ?
+                new BlockPos((int)avgX, (int)avgY, (int)avgZ) :
+                BlockPos.ORIGIN;
     }
 
     public static BlockTransitionTask create(ServerWorld world, BlockBounds bounds, String taskId) {
@@ -253,14 +263,30 @@ private void performAnimation() {
         }
 
         // 定义方向向量（例如：从西南向东北方向）
-        Vec3d direction = new Vec3d(0, 1, 0).normalize(); // 可以修改这个向量来改变排序方向
+        Vec3d direction = PuzzleRain.config.Dir.ToVec3d().normalize(); // 可以修改这个向量来改变排序方向
 
-        // 按照方向向量的投影距离排序
-        blockInfos.sort((info1, info2) -> {
-            double proj1 = calculateProjection(info1.pos, direction);
-            double proj2 = calculateProjection(info2.pos, direction);
-            return Double.compare(proj1, proj2);
-        });
+        if(!PuzzleRain.config.useCenterPoint){
+            // 按照方向向量的投影距离排序
+            blockInfos.sort((info1, info2) -> {
+                double proj1 = calculateProjection(info1.pos, direction);
+                double proj2 = calculateProjection(info2.pos, direction);
+                return PuzzleRain.config.useReverse?-1*Double.compare(proj1, proj2):Double.compare(proj1, proj2);
+            });
+        }else{
+            //BlockPos center = new BlockPos(0,0,0);
+            if(PuzzleRain.config.useAutoCenterPoint){
+
+            }else{
+                center = PuzzleRain.config.Dir.ToBP();
+            }
+
+            
+            blockInfos.sort((i1, i2)->{
+                double len1 = center.getSquaredDistance(i1.pos);
+                double len2 = center.getSquaredDistance(i2.pos);
+                return PuzzleRain.config.useReverse?Double.compare(len1,len2)*-1:Double.compare(len1,len2);
+            });
+        }
 
         // 按排序后的顺序添加动画
         for (int i = 0; i < blockInfos.size(); i++) {
@@ -281,7 +307,7 @@ private void performAnimation() {
             Random r = new Random();
             Vec3d startPos;
             if(PuzzleRain.config.usespecificPos){
-                startPos= new Vec3d(PuzzleRain.config.specificPosX,PuzzleRain.config.specificPosY,PuzzleRain.config.specificPosZ);
+                startPos= PuzzleRain.config.specificPos.ToVec3d();
             }else{
                 startPos = boundsCenter.add(
                         r.nextDouble() * spread - spread * 0.5,

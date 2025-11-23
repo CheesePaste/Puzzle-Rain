@@ -70,8 +70,8 @@ public class PuzzleRain implements ModInitializer {
 		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (KeyBindings.openConfigKey.wasPressed()) {
-				RegionManager.getInstance().setFirstPosition(client.player,new BlockPos(config.startPosX,config.startPosY,config.startPosZ));
-				RegionManager.getInstance().setSecondPosition(client.player,new BlockPos(config.endPosX,config.endPosY,config.endPosZ));
+				RegionManager.getInstance().setFirstPosition(client.player,config.startPos.ToBP());
+				RegionManager.getInstance().setSecondPosition(client.player,config.endPos.ToBP());
 				if (client.player != null) {
 					client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
 				}

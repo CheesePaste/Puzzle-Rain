@@ -1,0 +1,44 @@
+{
+  "vertex": "puzzle-rain:gravitational_distortion",
+  "fragment": "puzzle-rain:gravitational_distortion",
+  "attributes": [
+    "Position",
+    "UV0",
+    "Color"
+  ],
+  "samplers": [
+    {
+      "name": "Sampler0"
+    }
+  ],
+  "uniforms": [
+    {
+      "name": "GravityCenters",
+      "type": "float",
+      "count": 30,
+      "values": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    },
+    {
+      "name": "GravityCenterCount",
+      "type": "int",
+      "count": 1,
+      "values": [ 0 ]
+    },
+    {
+      "name": "Time",
+      "type": "float",
+      "count": 1,
+      "values": [ 0.0 ]
+    },
+    {
+      "name": "ScreenSize",
+      "type": "float",
+      "count": 2,
+      "values": [ 0.0, 0.0 ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package com.puzzle_rain.entity;
 
 import com.puzzle_rain.ControlEnum;
+import com.puzzle_rain.GravitationalDistortionShader;
 import com.puzzle_rain.PuzzleRain;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -28,6 +29,8 @@ public class FlyingBlockEntity extends Entity {
     private final List<Vec3d> trailPositions = new ArrayList<>();
     private static final int MAX_TRAIL_LENGTH = 25;
 
+    private double gravityRadius = 3.0;
+    private boolean isCreatingGravity = true;
     public static final TrackedData<Integer> BLOCK_STATE_ID = DataTracker.registerData(FlyingBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
     public FlyingBlockEntity(EntityType<?> type, World world) {
@@ -160,6 +163,10 @@ public class FlyingBlockEntity extends Entity {
         this.age++;
         updateTrail();
 
+        if (isCreatingGravity && this.getWorld().isClient()) {
+            GravitationalDistortionShader.addGravityCenter(this.getPos(), gravityRadius);
+        }
+
 
         // 自动移除旧实体防止内存泄漏
         if (this.age > maxAge) {
@@ -225,5 +232,14 @@ public class FlyingBlockEntity extends Entity {
     @Override
     public boolean isAlive() {
         return !this.isRemoved();
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        super.remove(reason);
+        // 实体移除时清理引力场
+        if (this.getWorld().isClient()) {
+            GravitationalDistortionShader.removeGravityCenter(this.getPos());
+        }
     }
 }

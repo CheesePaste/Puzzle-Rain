@@ -1,6 +1,7 @@
 package com.puzzle_rain;
 
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -239,7 +240,8 @@ private void performAnimation() {
         for (BlockPos pos : originalPositions) {
             BlockState state = world.getBlockState(pos);
             originalStates.add(state);
-            world.breakBlock(pos, false);
+            world.setBlockState(pos, Blocks.AIR.getDefaultState());
+
         }
 
         // 短暂延迟确保方块破坏完成

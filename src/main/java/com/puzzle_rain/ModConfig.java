@@ -47,6 +47,7 @@ public class ModConfig implements ConfigData {
     public int groupDelay=40;
     public int delay=20;
 
+    public boolean justBreak=false;
 
     public static class V3{
         public double x=0,y=0,z=0;

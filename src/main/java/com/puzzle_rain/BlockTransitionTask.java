@@ -244,6 +244,9 @@ private void performAnimation() {
 
         }
 
+        if(PuzzleRain.config.justBreak){
+            return;
+        }
         // 短暂延迟确保方块破坏完成
         try {
             Thread.sleep(100);

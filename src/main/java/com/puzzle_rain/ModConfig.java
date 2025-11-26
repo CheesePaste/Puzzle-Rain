@@ -14,7 +14,9 @@ import java.util.List;
 @Config(name = "puzzle-rain")
 public class ModConfig implements ConfigData {
 
+    @ConfigEntry.Gui.CollapsibleObject
     public V3 startPos=new V3();
+    @ConfigEntry.Gui.CollapsibleObject
     public V3 endPos=new V3();
 
     public ControlEnum controlType = ControlEnum.Velocity_roll;
@@ -36,6 +38,7 @@ public class ModConfig implements ConfigData {
     public boolean useReverse = false;
     public boolean useAutoCenterPoint=true;
 
+    @ConfigEntry.Gui.CollapsibleObject
     public V3 Dir=new V3();
     public float spherefactor=5;
     public boolean useEnergyField=false;

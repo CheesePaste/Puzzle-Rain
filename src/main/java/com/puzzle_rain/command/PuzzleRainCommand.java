@@ -6,6 +6,7 @@ import com.puzzle_rain.PuzzleRain;
 import com.puzzle_rain.BlockBounds;
 import com.puzzle_rain.RegionManager;
 import net.minecraft.command.argument.BlockPosArgumentType;
+import net.minecraft.item.MaceItem;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;

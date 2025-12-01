@@ -12,12 +12,15 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -52,42 +55,50 @@ public class PuzzleRain implements ModInitializer {
 	@Override
 	public void onInitialize() {
 
-		LOGGER.info("Puzzle Rain mod initialized!");
-		instance = this; // 设置实例
+
+			LOGGER.info("Puzzle Rain mod initialized!");
+			instance = this;
 		// 在世界渲染后应用扭曲效果
 
 
 
-		// 注册实体
-		ModEntities.initialize();
+			// 注册实体
+			ModEntities.initialize();
 
-		// 注册命令
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-			PuzzleRainCommand.register(dispatcher);
-		});
+			// 注册命令
+			CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+				PuzzleRainCommand.register(dispatcher);
+			});
 
-		// 注册tick事件来更新飞行动画
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
-			tickFlyingAnimations();
-		});
+			// 注册tick事件来更新飞行动画
+			ServerTickEvents.END_SERVER_TICK.register(server -> {
+				tickFlyingAnimations();
+			});
 
-
-
-		GuiRegistry registry = AutoConfig.getGuiRegistry(ModConfig.class);
-		KeyBindings.register();
-		config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			while (KeyBindings.openConfigKey.wasPressed()) {
-				RegionManager.getInstance().setFirstPosition(client.player,config.startPos.ToBP());
-				RegionManager.getInstance().setSecondPosition(client.player,config.endPos.ToBP());
-				if (client.player != null) {
-					client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
+			UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+				if (hand == Hand.MAIN_HAND) { // 只处理主手
+					return ChainDestructionHandler.onBlockInteract(player, world, hitResult.getBlockPos());
 				}
-			}
-			while (KeyBindings.addEmitterPointKey.wasPressed()){
-				addPlayerPositionToEmitterPoints(client.player);
-			}
-		});
+				return ActionResult.PASS;
+			});
+
+			GuiRegistry registry = AutoConfig.getGuiRegistry(ModConfig.class);
+			KeyBindings.register();
+			config = AutoConfig.getConfigHolder(ModConfig.class).getConfig();
+
+			ClientTickEvents.END_CLIENT_TICK.register(client -> {
+				while (KeyBindings.openConfigKey.wasPressed()) {
+					RegionManager.getInstance().setFirstPosition(client.player,config.startPos.ToBP());
+					RegionManager.getInstance().setSecondPosition(client.player,config.endPos.ToBP());
+					if (client.player != null) {
+						client.setScreen(AutoConfig.getConfigScreen(ModConfig.class, client.currentScreen).get());
+					}
+				}
+				while (KeyBindings.addEmitterPointKey.wasPressed()){
+					addPlayerPositionToEmitterPoints(client.player);
+				}
+			});
+
 
 
 	}

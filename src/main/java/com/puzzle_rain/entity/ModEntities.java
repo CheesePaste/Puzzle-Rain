@@ -20,6 +20,11 @@ public class ModEntities {
                     .alwaysUpdateVelocity(true)
                     .build()
     );
+    public static final EntityType<HammerStrikeEntity> HAMMER_STRIKE_ENTITY =
+            Registry.register(Registries.ENTITY_TYPE, Identifier.of("puzzle_rain", "hammer_strike"),
+                    EntityType.Builder.<HammerStrikeEntity>create(HammerStrikeEntity::new, SpawnGroup.MISC)
+                            .dimensions(0.5f, 0.5f)
+                            .build());
 
     public static void initialize() {
         PuzzleRain.LOGGER.info("Registering mod entities for {}", PuzzleRain.MOD_ID);

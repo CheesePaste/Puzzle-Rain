@@ -29,11 +29,15 @@ public class HammerStrikeEntity extends Entity {
 
     // 用于延迟处理的字段
     private List<BlockPos> remainingBlocksToProcess = new ArrayList<>();
-    private static final int MAX_BLOCKS_PER_TICK = 50; // Further increased to allow faster processing for larger radii
+    private static final int MAX_BLOCKS_PER_TICK = 200; // Increased to process more blocks per tick for larger radii
 
     // 用于控制爆炸的字段
     private boolean allBlocksProcessed = false;
     private static final double CONVERGENCE_THRESHOLD = 1.5; // Increased threshold for more lenient center detection
+
+    // 动态区块检测相关
+    private boolean initialCollectionDone = false; // 是否已完成初始收集
+    private int radiusInt=40; // 预计算半径整数值
 
     // 阶段时间配置
     private static final int SHOCKWAVE_DURATION = 10;
@@ -53,6 +57,7 @@ public class HammerStrikeEntity extends Entity {
         super(ModEntities.HAMMER_STRIKE_ENTITY, world);
         this.centerPos = center;
         this.radius = radius; // 不限制最大半径
+        this.radiusInt = (int) Math.ceil(radius); // 预计算半径整数值
         this.setPosition(Vec3d.ofCenter(center));
 
         // 只在服务端初始化
@@ -69,38 +74,37 @@ public class HammerStrikeEntity extends Entity {
             return;
         }
 
-        // 收集范围内的方块 - optimized to reduce unnecessary iterations
+        // 收集范围内的方块 - 使用更精确的算法来 include all blocks within radius
         int radiusInt = (int) Math.ceil(radius);
-        int radiusSquared = (int) (radius * radius); // Use squared distance comparison to avoid sqrt calculation
 
         for (int x = -radiusInt; x <= radiusInt; x++) {
             for (int y = -radiusInt; y <= radiusInt; y++) {
-                int xSquared = x * x;
-                int ySquared = y * y;
-
                 for (int z = -radiusInt; z <= radiusInt; z++) {
-                    int zSquared = z * z;
-                    int distanceSquared = xSquared + ySquared + zSquared;
+                    double distanceSquared = x * x + y * y + z * z;
 
-                    if (distanceSquared <= radiusSquared) {
+                    // Check if this position is within the sphere radius
+                    if (distanceSquared <= radius * radius + 0.5) { // Add small buffer to ensure edge blocks aren't missed
                         BlockPos pos = centerPos.add(x, y, z);
 
-                        // 检查位置是否有效
-                        if (!getWorld().isPosLoaded(pos.getX(), pos.getZ())) {
-                            continue;
-                        }
+                        // 检查位置是否有效（在世界边界内）和是否已加载
+                        if (getWorld().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4) &&
+                            getWorld().isInBuildLimit(pos)) {
 
-                        if (!getWorld().isAir(pos)) {
-                            affectedBlocks.add(pos.toImmutable()); // 使用不可变位置
+                            if (!getWorld().isAir(pos)) {
+                                affectedBlocks.add(pos.toImmutable()); // 使用不可变位置
+                            }
                         }
                     }
                 }
             }
         }
 
+        PuzzleRain.LOGGER.info("Hammer strike initialized with {} blocks in range", affectedBlocks.size());
+
         // Initialize remaining blocks to process for delayed generation
         this.remainingBlocksToProcess = new ArrayList<>(affectedBlocks);
         Collections.shuffle(this.remainingBlocksToProcess); // 随机化处理顺序
+        this.initialCollectionDone = true; // 标记初始收集已完成
 
         // 只在服务端播放音效
         if (!getWorld().isClient()) {
@@ -129,6 +133,10 @@ public class HammerStrikeEntity extends Entity {
                 tickShockwave();
                 break;
             case 1: // 内爆与连续爆炸阶段
+                // Dynamically collect blocks from newly loaded chunks
+                if (initialCollectionDone) {
+                    collectNewlyLoadedBlocks();
+                }
                 processBlocksGradually();
                 tickImplosion();
                 checkAndExplodeBlocks(); // Continuously check for blocks to explode
@@ -148,13 +156,16 @@ public class HammerStrikeEntity extends Entity {
 
         // Discard when all blocks are processed and no flying blocks remain
         if (phase == 1 && allBlocksProcessed && flyingBlocks.isEmpty()) {
+            PuzzleRain.LOGGER.info("Hammer strike completed successfully - all {} blocks processed and exploded", affectedBlocks.size());
             discard();
         }
 
         // Also discard if we've gone on too long to prevent infinite loops
         // Allow time based on the number of blocks to process (larger radii have more blocks)
-        int maxProcessingTime = SHOCKWAVE_DURATION + (int)(IMPLOSION_DURATION * 3 + radius * 8); // Scale with radius
+        int maxProcessingTime = SHOCKWAVE_DURATION + (int)(IMPLOSION_DURATION * 5 + radius * 20); // Scale with radius more generously
         if (age > maxProcessingTime) {
+            PuzzleRain.LOGGER.warn("Hammer strike timed out - {} blocks processed, {} flying blocks still active",
+                affectedBlocks.size() - remainingBlocksToProcess.size(), flyingBlocks.size());
             discard();
         }
     }
@@ -211,19 +222,21 @@ public class HammerStrikeEntity extends Entity {
         if (!remainingBlocksToProcess.isEmpty()) {
             int blocksProcessedThisCall = 0;
             int attempts = 0;
-            final int maxAttempts = MAX_BLOCKS_PER_TICK * 3; // Limit attempts to prevent infinite loops, scaled higher for more processing
+            // Increase processing rate significantly to handle all blocks faster
+            final int maxBlocksThisTick = Math.min(MAX_BLOCKS_PER_TICK * 4, remainingBlocksToProcess.size()); // Process more blocks per tick
+            final int maxAttempts = maxBlocksThisTick * 3; // Limit attempts to prevent infinite loops
 
             // Continue processing until we've processed up to MAX_BLOCKS_PER_TICK blocks
             // or we've exhausted the remaining blocks
-            while (blocksProcessedThisCall < MAX_BLOCKS_PER_TICK
+            while (blocksProcessedThisCall < maxBlocksThisTick
                    && !remainingBlocksToProcess.isEmpty()
                    && attempts < maxAttempts) {
 
                 BlockPos pos = remainingBlocksToProcess.remove(0); // Remove from front of list
                 attempts++;
 
-                // 检查位置是否有效
-                if (!getWorld().isPosLoaded(pos.getX(), pos.getZ())) {
+                // 检查位置是否有效（现在使用更宽松的检查）
+                if (!getWorld().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
                     // If chunk is not loaded, put it back at the end to try later
                     remainingBlocksToProcess.add(pos);
                     continue;
@@ -232,6 +245,7 @@ public class HammerStrikeEntity extends Entity {
                 BlockState blockState = getWorld().getBlockState(pos);
                 if (blockState.isAir()) {
                     // If block is now air, skip it (it might have been broken by something else)
+                    blocksProcessedThisCall++; // Count as processed to avoid infinite loops
                     continue;
                 }
 
@@ -250,9 +264,15 @@ public class HammerStrikeEntity extends Entity {
                     blocksProcessedThisCall++; // Still count as processed to avoid endless retries
                 }
             }
+
+            // Log progress periodically
+            if (age % 20 == 0) {
+                PuzzleRain.LOGGER.info("Hammer strike progress: {} blocks remaining to process", remainingBlocksToProcess.size());
+            }
         } else if (!allBlocksProcessed) {
             // All blocks have been processed and created as flying entities
             allBlocksProcessed = true;
+            PuzzleRain.LOGGER.info("All {} blocks processed for hammer strike", affectedBlocks.size());
         }
     }
 
@@ -284,6 +304,95 @@ public class HammerStrikeEntity extends Entity {
     }
 
 
+    private int chunkCheckCounter = 0; // To limit how often we check chunks
+
+    // Dynamically collect blocks from newly loaded chunks (more efficient approach)
+    private void collectNewlyLoadedBlocks() {
+        if (getWorld().isClient()) {
+            return;
+        }
+
+        // Only run chunk loading checks every few ticks to reduce performance impact
+        chunkCheckCounter++;
+        if (chunkCheckCounter % 5 != 0) { // Check every 5 ticks
+            return;
+        }
+
+        // Calculate the chunk range that could contain blocks in our radius
+        int minChunkX = (centerPos.getX() - radiusInt) >> 4;
+        int maxChunkX = (centerPos.getX() + radiusInt) >> 4;
+        int minChunkZ = (centerPos.getZ() - radiusInt) >> 4;
+        int maxChunkZ = (centerPos.getZ() + radiusInt) >> 4;
+
+        // Check chunks in the range
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                long chunkPos = (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
+
+                // Only process if chunk is loaded and we haven't checked it recently
+                if (getWorld().isChunkLoaded(chunkX, chunkZ)) {
+                    // Process the chunk to look for unprocessed blocks
+                    processChunkForNewBlocks(chunkX, chunkZ);
+                }
+            }
+        }
+
+        // Reset the allBlocksProcessed flag if we added new blocks
+        if (!remainingBlocksToProcess.isEmpty()) {
+            allBlocksProcessed = false;
+        }
+    }
+
+    private void processChunkForNewBlocks(int chunkX, int chunkZ) {
+        // Check all blocks in this chunk that are within the radius
+        int minX = chunkX << 4;
+        int maxX = minX + 15;
+        int minZ = chunkZ << 4;
+        int maxZ = minZ + 15;
+
+        // Calculate the valid Y range for this chunk based on the radius
+        int minY = Math.max(getWorld().getBottomY(), centerPos.getY() - radiusInt);
+        int maxY = Math.min(getWorld().getTopY(), centerPos.getY() + radiusInt);
+
+        BlockPos center = this.centerPos;
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int y = minY; y <= maxY; y++) { // Only check Y range within radius
+                    double dx = x - center.getX();
+                    double dz = z - center.getZ();
+                    double dy = y - center.getY();
+                    double distanceSquared = dx * dx + dy * dy + dz * dz;
+
+                    // Check if this position is within the sphere radius
+                    if (distanceSquared <= radius * radius + 0.5) { // Add small buffer
+                        BlockPos pos = new BlockPos(x, y, z);
+
+                        // Check if this block is not air and not already in affectedBlocks
+                        if (!getWorld().isAir(pos)) {
+                            // Use a more efficient check for existing positions
+                            boolean alreadyProcessed = false;
+                            for (BlockPos existingPos : affectedBlocks) {
+                                if (existingPos.equals(pos)) {
+                                    alreadyProcessed = true;
+                                    break;
+                                }
+                            }
+
+                            if (!alreadyProcessed) {
+                                // Add this newly discovered block to processing queue
+                                affectedBlocks.add(pos.toImmutable());
+                                remainingBlocksToProcess.add(pos.toImmutable());
+
+                                PuzzleRain.LOGGER.debug("Discovered new block at {} during dynamic collection", pos);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Check for blocks that have reached the center and explode them
     private void checkAndExplodeBlocks() {
         if (flyingBlocks.isEmpty()) {
@@ -294,29 +403,31 @@ public class HammerStrikeEntity extends Entity {
         for (int i = flyingBlocks.size() - 1; i >= 0; i--) {
             FlyingBlockEntity flyingBlock = flyingBlocks.get(i);
 
-            if (flyingBlock != null && !flyingBlock.isRemoved() &&
-                flyingBlock.getPos().squaredDistanceTo(centerPos.toCenterPos()) < CONVERGENCE_THRESHOLD * CONVERGENCE_THRESHOLD) {
+            if (flyingBlock != null && !flyingBlock.isRemoved()) {
+                double distanceToCenter = flyingBlock.getPos().distanceTo(centerPos.toCenterPos());
 
-                // Block has reached the center, make it explode
-                try {
-                    // Position at exact center for consistent visual effect
-                    flyingBlock.setPosition(centerPos.toCenterPos());
-                    flyingBlock.setMovementState(FlyingBlockEntity.MovementState.EXPLOSION);
+                if (distanceToCenter < CONVERGENCE_THRESHOLD) {
+                    // Block has reached the center, make it explode
+                    try {
+                        // Position at exact center for consistent visual effect
+                        flyingBlock.setPosition(centerPos.toCenterPos());
+                        flyingBlock.setMovementState(FlyingBlockEntity.MovementState.EXPLOSION);
 
-                    // Explosive velocity away from center
-                    Vec3d randomDir = new Vec3d(
-                            Math.random() * 2 - 1, // -1 to 1
-                            Math.random() * 2 - 1, // -1 to 1
-                            Math.random() * 2 - 1  // -1 to 1
-                    ).normalize().multiply(3.0 + Math.random() * 4.0);
+                        // Explosive velocity away from center
+                        Vec3d randomDir = new Vec3d(
+                                Math.random() * 2 - 1, // -1 to 1
+                                Math.random() * 2 - 1, // -1 to 1
+                                Math.random() * 2 - 1  // -1 to 1
+                        ).normalize().multiply(3.0 + Math.random() * 4.0);
 
-                    flyingBlock.setVelocity(randomDir);
+                        flyingBlock.setVelocity(randomDir);
 
-                    // Remove from flying blocks list since it's now in explosion state
-                    flyingBlocks.remove(i);
+                        // Remove from flying blocks list since it's now in explosion state
+                        flyingBlocks.remove(i);
 
-                } catch (Exception e) {
-                    PuzzleRain.LOGGER.error("Error triggering explosion for flying block", e);
+                    } catch (Exception e) {
+                        PuzzleRain.LOGGER.error("Error triggering explosion for flying block", e);
+                    }
                 }
             }
         }

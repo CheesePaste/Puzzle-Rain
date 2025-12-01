@@ -16,15 +16,24 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class HammerStrikeEntity extends Entity {
     private BlockPos centerPos;
     private float radius;
     private int age = 0;
-    private int phase = 0; // 0:冲击波, 1:内爆, 2:爆炸
+    private int phase = 0; // 0:冲击波, 1:内爆与连续爆炸
     private List<FlyingBlockEntity> flyingBlocks = new ArrayList<>();
     private List<BlockPos> affectedBlocks = new ArrayList<>();
+
+    // 用于延迟处理的字段
+    private List<BlockPos> remainingBlocksToProcess = new ArrayList<>();
+    private static final int MAX_BLOCKS_PER_TICK = 50; // Further increased to allow faster processing for larger radii
+
+    // 用于控制爆炸的字段
+    private boolean allBlocksProcessed = false;
+    private static final double CONVERGENCE_THRESHOLD = 1.5; // Increased threshold for more lenient center detection
 
     // 阶段时间配置
     private static final int SHOCKWAVE_DURATION = 10;
@@ -43,7 +52,7 @@ public class HammerStrikeEntity extends Entity {
     public HammerStrikeEntity(World world, BlockPos center, float radius) {
         super(ModEntities.HAMMER_STRIKE_ENTITY, world);
         this.centerPos = center;
-        this.radius = radius;
+        this.radius = radius; // 不限制最大半径
         this.setPosition(Vec3d.ofCenter(center));
 
         // 只在服务端初始化
@@ -60,25 +69,38 @@ public class HammerStrikeEntity extends Entity {
             return;
         }
 
-        // 收集范围内的方块
+        // 收集范围内的方块 - optimized to reduce unnecessary iterations
         int radiusInt = (int) Math.ceil(radius);
+        int radiusSquared = (int) (radius * radius); // Use squared distance comparison to avoid sqrt calculation
+
         for (int x = -radiusInt; x <= radiusInt; x++) {
             for (int y = -radiusInt; y <= radiusInt; y++) {
+                int xSquared = x * x;
+                int ySquared = y * y;
+
                 for (int z = -radiusInt; z <= radiusInt; z++) {
-                    BlockPos pos = centerPos.add(x, y, z);
+                    int zSquared = z * z;
+                    int distanceSquared = xSquared + ySquared + zSquared;
 
-                    // 检查位置是否有效
-                    if (!getWorld().isPosLoaded(pos.getX(), pos.getZ())) {
-                        continue;
-                    }
+                    if (distanceSquared <= radiusSquared) {
+                        BlockPos pos = centerPos.add(x, y, z);
 
-                    double distance = Math.sqrt(x*x + y*y + z*z);
-                    if (distance <= radius && !getWorld().isAir(pos)) {
-                        affectedBlocks.add(pos.toImmutable()); // 使用不可变位置
+                        // 检查位置是否有效
+                        if (!getWorld().isPosLoaded(pos.getX(), pos.getZ())) {
+                            continue;
+                        }
+
+                        if (!getWorld().isAir(pos)) {
+                            affectedBlocks.add(pos.toImmutable()); // 使用不可变位置
+                        }
                     }
                 }
             }
         }
+
+        // Initialize remaining blocks to process for delayed generation
+        this.remainingBlocksToProcess = new ArrayList<>(affectedBlocks);
+        Collections.shuffle(this.remainingBlocksToProcess); // 随机化处理顺序
 
         // 只在服务端播放音效
         if (!getWorld().isClient()) {
@@ -102,24 +124,37 @@ public class HammerStrikeEntity extends Entity {
             return;
         }
 
-        age++;
-
         switch (phase) {
             case 0: // 冲击波阶段
                 tickShockwave();
                 break;
-            case 1: // 内爆阶段
+            case 1: // 内爆与连续爆炸阶段
+                processBlocksGradually();
                 tickImplosion();
-                break;
-            case 2: // 爆炸阶段
-                tickExplosion();
+                checkAndExplodeBlocks(); // Continuously check for blocks to explode
                 break;
             default:
                 discard();
                 break;
         }
 
-        if (age > SHOCKWAVE_DURATION + IMPLOSION_DURATION + EXPLOSION_DURATION) {
+        age++;
+
+        // Transition to phase 1 (main phase) after shockwave
+        if (phase == 0 && age >= SHOCKWAVE_DURATION) {
+            phase = 1;
+            age = 0;
+        }
+
+        // Discard when all blocks are processed and no flying blocks remain
+        if (phase == 1 && allBlocksProcessed && flyingBlocks.isEmpty()) {
+            discard();
+        }
+
+        // Also discard if we've gone on too long to prevent infinite loops
+        // Allow time based on the number of blocks to process (larger radii have more blocks)
+        int maxProcessingTime = SHOCKWAVE_DURATION + (int)(IMPLOSION_DURATION * 3 + radius * 8); // Scale with radius
+        if (age > maxProcessingTime) {
             discard();
         }
     }
@@ -132,26 +167,28 @@ public class HammerStrikeEntity extends Entity {
         double progress = (double) age / SHOCKWAVE_DURATION;
         double currentRadius = progress * radius;
 
-        // 球状冲击波粒子
-        for (int i = 0; i < 50; i++) {
+        // 球状冲击波粒子 - optimized to reduce particle count for performance
+        int particleCount = Math.max(5, (int)(15 * (radius / 5.0))); // Scale with radius but keep it reasonable
+
+        for (int i = 0; i < particleCount; i++) {
             double theta = Math.random() * Math.PI * 2;
             double phi = Math.acos(2 * Math.random() - 1);
             double x = currentRadius * Math.sin(phi) * Math.cos(theta);
             double y = currentRadius * Math.sin(phi) * Math.sin(theta);
             double z = currentRadius * Math.cos(phi);
 
-            BlockPos particlePos = centerPos.add((int) x, (int) y, (int) z);
+            BlockPos particlePos = centerPos.add((int) Math.round(x), (int) Math.round(y), (int) Math.round(z));
 
-            // 检查位置是否有效
-            if (!serverWorld.isPosLoaded(particlePos.getX(), particlePos.getZ())) {
+            // 检查位置是否有效 - only check every other particle to reduce load
+            if (i % 2 == 0 && !serverWorld.isPosLoaded(particlePos.getX(), particlePos.getZ())) {
                 continue;
             }
 
-            BlockState blockState = serverWorld.getBlockState(particlePos.down());
+            BlockState blockState = serverWorld.getBlockState(particlePos.down().toImmutable());
 
             serverWorld.spawnParticles(
                     new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState),
-                    particlePos.getX(), particlePos.getY(), particlePos.getZ(),
+                    centerPos.getX() + x, centerPos.getY() + y, centerPos.getZ() + z,
                     1, 0.1, 0.1, 0.1, 0.05
             );
         }
@@ -159,43 +196,64 @@ public class HammerStrikeEntity extends Entity {
         if (age >= SHOCKWAVE_DURATION) {
             phase = 1;
             age = 0;
-            startImplosion();
+            // In the new approach, the implosion phase starts automatically with the main tick loop
         }
     }
 
-    private void startImplosion() {
+
+    // Process blocks gradually during tick
+    private void processBlocksGradually() {
         if (getWorld().isClient() || centerPos == null) {
             return;
         }
 
-        // 创建飞行方块实体
-        for (BlockPos pos : affectedBlocks) {
-            // 检查位置是否有效
-            if (!getWorld().isPosLoaded(pos.getX(), pos.getZ())) {
-                continue;
-            }
+        // Process remaining blocks if any
+        if (!remainingBlocksToProcess.isEmpty()) {
+            int blocksProcessedThisCall = 0;
+            int attempts = 0;
+            final int maxAttempts = MAX_BLOCKS_PER_TICK * 3; // Limit attempts to prevent infinite loops, scaled higher for more processing
 
-            BlockState blockState = getWorld().getBlockState(pos);
-            if (blockState.isAir()) {
-                continue;
-            }
+            // Continue processing until we've processed up to MAX_BLOCKS_PER_TICK blocks
+            // or we've exhausted the remaining blocks
+            while (blocksProcessedThisCall < MAX_BLOCKS_PER_TICK
+                   && !remainingBlocksToProcess.isEmpty()
+                   && attempts < maxAttempts) {
 
-            try {
-                getWorld().breakBlock(pos, false); // 移除原方块，不掉落物品
+                BlockPos pos = remainingBlocksToProcess.remove(0); // Remove from front of list
+                attempts++;
 
-                FlyingBlockEntity flyingBlock = new FlyingBlockEntity(getWorld(), pos, blockState);
-                flyingBlock.setImplosionTarget(Vec3d.ofCenter(centerPos));
-                flyingBlock.setMovementState(FlyingBlockEntity.MovementState.IMPLOSION);
-                getWorld().spawnEntity(flyingBlock);
-                flyingBlocks.add(flyingBlock);
-            } catch (Exception e) {
-                PuzzleRain.LOGGER.error("Error creating flying block at " + pos, e);
+                // 检查位置是否有效
+                if (!getWorld().isPosLoaded(pos.getX(), pos.getZ())) {
+                    // If chunk is not loaded, put it back at the end to try later
+                    remainingBlocksToProcess.add(pos);
+                    continue;
+                }
+
+                BlockState blockState = getWorld().getBlockState(pos);
+                if (blockState.isAir()) {
+                    // If block is now air, skip it (it might have been broken by something else)
+                    continue;
+                }
+
+                try {
+                    getWorld().breakBlock(pos, false); // 移除原方块，不掉落物品
+
+                    FlyingBlockEntity flyingBlock = new FlyingBlockEntity(getWorld(), pos, blockState);
+                    flyingBlock.setImplosionTarget(Vec3d.ofCenter(centerPos));
+                    flyingBlock.setMovementState(FlyingBlockEntity.MovementState.IMPLOSION);
+                    getWorld().spawnEntity(flyingBlock);
+                    flyingBlocks.add(flyingBlock);
+
+                    blocksProcessedThisCall++; // Only increment when we actually process a block
+                } catch (Exception e) {
+                    PuzzleRain.LOGGER.error("Error creating flying block at " + pos, e);
+                    blocksProcessedThisCall++; // Still count as processed to avoid endless retries
+                }
             }
+        } else if (!allBlocksProcessed) {
+            // All blocks have been processed and created as flying entities
+            allBlocksProcessed = true;
         }
-
-        // 播放内爆音效
-        getWorld().playSound(null, centerPos.getX(), centerPos.getY(), centerPos.getZ(),
-                SoundEvents.BLOCK_CONDUIT_AMBIENT, SoundCategory.BLOCKS, 1.5F, 0.5F);
     }
 
     private void tickImplosion() {
@@ -203,83 +261,68 @@ public class HammerStrikeEntity extends Entity {
             return;
         }
 
-        // 向内收缩的粒子效果
-        double progress = 1.0 - (double) age / IMPLOSION_DURATION;
-        double currentRadius = progress * radius;
+        // 向内收缩的粒子效果 - optimized for performance
+        if (age % 2 == 0) { // Only run every other tick to reduce load
+            double progress = 1.0 - (double) age / IMPLOSION_DURATION;
+            double currentRadius = progress * radius;
 
-        for (int i = 0; i < 30; i++) {
-            double theta = Math.random() * Math.PI * 2;
-            double x = currentRadius * Math.cos(theta);
-            double z = currentRadius * Math.sin(theta);
-            double y = Math.random() * radius * 2 - radius;
+            int particleCount = Math.max(3, (int)(10 * (radius / 5.0))); // Scale with radius but keep it reasonable
 
-            serverWorld.spawnParticles(
-                    ParticleTypes.SMOKE,
-                    centerPos.getX() + x, centerPos.getY() + y, centerPos.getZ() + z,
-                    1, 0.1, 0.1, 0.1, 0.05
-            );
-        }
+            for (int i = 0; i < particleCount; i++) {
+                double theta = Math.random() * Math.PI * 2;
+                double x = currentRadius * Math.cos(theta);
+                double z = currentRadius * Math.sin(theta);
+                double y = (Math.random() * radius * 2 - radius) * 0.5; // Reduced vertical spread for efficiency
 
-        if (age >= IMPLOSION_DURATION) {
-            phase = 2;
-            age = 0;
-            startExplosion();
+                serverWorld.spawnParticles(
+                        ParticleTypes.SMOKE,
+                        centerPos.getX() + x, centerPos.getY() + y, centerPos.getZ() + z,
+                        1, 0.1, 0.1, 0.1, 0.05
+                );
+            }
         }
     }
 
-    private void startExplosion() {
-        if (getWorld().isClient()) {
+
+    // Check for blocks that have reached the center and explode them
+    private void checkAndExplodeBlocks() {
+        if (flyingBlocks.isEmpty()) {
             return;
         }
 
-        // 触发核心爆炸
-        for (FlyingBlockEntity flyingBlock : flyingBlocks) {
-            if (flyingBlock != null && flyingBlock.isAlive()) {
+        // Process all blocks that have reached the center (no limit)
+        for (int i = flyingBlocks.size() - 1; i >= 0; i--) {
+            FlyingBlockEntity flyingBlock = flyingBlocks.get(i);
+
+            if (flyingBlock != null && !flyingBlock.isRemoved() &&
+                flyingBlock.getPos().squaredDistanceTo(centerPos.toCenterPos()) < CONVERGENCE_THRESHOLD * CONVERGENCE_THRESHOLD) {
+
+                // Block has reached the center, make it explode
                 try {
+                    // Position at exact center for consistent visual effect
+                    flyingBlock.setPosition(centerPos.toCenterPos());
                     flyingBlock.setMovementState(FlyingBlockEntity.MovementState.EXPLOSION);
 
-                    // 随机爆炸方向
+                    // Explosive velocity away from center
                     Vec3d randomDir = new Vec3d(
-                            Math.random() - 0.5,
-                            Math.random() - 0.5,
-                            Math.random() - 0.5
-                    ).normalize().multiply(2.0 + Math.random() * 3.0);
+                            Math.random() * 2 - 1, // -1 to 1
+                            Math.random() * 2 - 1, // -1 to 1
+                            Math.random() * 2 - 1  // -1 to 1
+                    ).normalize().multiply(3.0 + Math.random() * 4.0);
 
                     flyingBlock.setVelocity(randomDir);
+
+                    // Remove from flying blocks list since it's now in explosion state
+                    flyingBlocks.remove(i);
+
                 } catch (Exception e) {
                     PuzzleRain.LOGGER.error("Error triggering explosion for flying block", e);
                 }
             }
         }
-
-        // 播放爆炸音效
-        getWorld().playSound(null, centerPos.getX(), centerPos.getY(), centerPos.getZ(),
-                SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 1.0F, 1.2F);
     }
 
-    private void tickExplosion() {
-        if (!(getWorld() instanceof ServerWorld serverWorld) || age >= 5) {
-            return;
-        }
 
-        // 核心闪光
-        serverWorld.spawnParticles(
-                ParticleTypes.FLASH,
-                centerPos.getX(), centerPos.getY(), centerPos.getZ(),
-                5, 0.5, 0.5, 0.5, 0
-        );
-
-        // 冲击环
-        for (int i = 0; i < 20; i++) {
-            double angle = Math.random() * Math.PI * 2;
-            double speed = 0.5 + Math.random() * 0.5;
-            serverWorld.spawnParticles(
-                    ParticleTypes.CLOUD,
-                    centerPos.getX(), centerPos.getY(), centerPos.getZ(),
-                    0, Math.cos(angle) * speed, 0.1, Math.sin(angle) * speed, 0.1
-            );
-        }
-    }
 
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {

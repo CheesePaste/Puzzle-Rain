@@ -74,7 +74,7 @@ public class MaceItemMixin {
      * 计算打击半径
      */
     private float calculateStrikeRadius(ItemStack stack) {
-        float baseRadius = 40.0f; // 基础半径
+        float baseRadius = 20.0f; // 基础半径
 
         // 根据附魔等级增加半径
         // int enchantmentLevel = EnchantmentHelper.getLevel(YourModEnchantments.STORM_ENCHANTMENT, stack);

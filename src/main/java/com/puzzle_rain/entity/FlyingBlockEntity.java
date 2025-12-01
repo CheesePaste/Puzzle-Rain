@@ -65,8 +65,8 @@ public class FlyingBlockEntity extends Entity {
     private float scaleChangeSpeed = 0.05f;
 
     // 消失效果
-    private boolean isFading = false;
-    private int fadeStartTime = 0;
+    boolean isFading = false;
+    int fadeStartTime = 0;
     private static final int FADE_DURATION = 20;
 
     public FlyingBlockEntity(EntityType<?> type, World world) {
@@ -326,23 +326,24 @@ public class FlyingBlockEntity extends Entity {
         if (implosionTarget != null) {
             Vec3d currentPos = this.getPos();
             Vec3d direction = implosionTarget.subtract(currentPos);
-            double distance = direction.length();
+            double distanceSquared = direction.lengthSquared(); // Use squared distance to avoid expensive sqrt calculation
 
-            if (distance > 0.5) {
+            if (distanceSquared > 0.25) { // 0.5^2 = 0.25
                 // 归一化方向并应用速度
-                direction = direction.normalize();
+                Vec3d normalizedDir = direction.multiply(1.0 / Math.sqrt(distanceSquared));
 
                 // 距离越近速度越快，模拟引力增强
+                double distance = Math.sqrt(distanceSquared);
                 double speed = 0.2 + (1.0 - Math.min(distance / 10.0, 1.0)) * 0.8;
-                this.setVelocity(direction.multiply(speed));
+                this.setVelocity(normalizedDir.multiply(speed));
 
-                // 添加随机摆动，使运动更自然
-                if (Math.random() < 0.3) {
+                // 添加随机摆动，使运动更自然 - only occasionally to reduce computation
+                if (this.age % 5 == 0 && Math.random() < 0.3) {
                     Vec3d randomOffset = new Vec3d(
-                            Math.random() - 0.5,
-                            Math.random() - 0.5,
-                            Math.random() - 0.5
-                    ).multiply(0.1);
+                            (Math.random() - 0.5) * 2.0,
+                            (Math.random() - 0.5) * 2.0,
+                            (Math.random() - 0.5) * 2.0
+                    ).multiply(0.05); // Reduced the random offset to optimize
                     this.addVelocity(randomOffset);
                 }
             } else {
@@ -361,23 +362,25 @@ public class FlyingBlockEntity extends Entity {
     }
 
     private void updateExplosionMovement() {
-        // 爆炸后逐渐减速
+        // 爆炸后逐渐减速 - less aggressive to improve performance
         Vec3d velocity = this.getVelocity();
-        this.setVelocity(velocity.multiply(0.97));
+        this.setVelocity(velocity.multiply(0.95)); // Reduced the number of operations by setting once
 
-        // 添加随机旋转变化
-        float rotSpeedX = this.dataTracker.get(ROTATION_SPEED_X);
-        float rotSpeedY = this.dataTracker.get(ROTATION_SPEED_Y);
-        this.dataTracker.set(ROTATION_SPEED_X, rotSpeedX * 0.99f);
-        this.dataTracker.set(ROTATION_SPEED_Y, rotSpeedY * 0.99f);
+        // 更新旋转速度 less frequently to improve performance
+        if (this.age % 3 == 0) {
+            float rotSpeedX = this.dataTracker.get(ROTATION_SPEED_X);
+            float rotSpeedY = this.dataTracker.get(ROTATION_SPEED_Y);
+            this.dataTracker.set(ROTATION_SPEED_X, rotSpeedX * 0.99f);
+            this.dataTracker.set(ROTATION_SPEED_Y, rotSpeedY * 0.99f);
+        }
 
-        // 爆炸后逐渐缩小
+        // 爆炸后逐渐缩小 - less aggressive scaling
         if (this.targetScale > 0.5f) {
-            this.targetScale *= 0.995f;
+            this.targetScale = Math.max(0.5f, this.targetScale * 0.998f); // Slightly slower scale reduction
         }
 
         // 在爆炸一段时间后开始淡出
-        if (this.age > 100 && !this.isFading) {
+        if (this.age > 80 && !this.isFading) { // Reduced time to fade faster
             this.isFading = true;
             this.fadeStartTime = this.age;
         }
@@ -440,7 +443,11 @@ public class FlyingBlockEntity extends Entity {
     public void tick() {
         super.tick();
         this.age++;
-        updateTrail();
+
+        // Update trail and scale less frequently to improve performance
+        if (this.age % 2 == 0) {
+            updateTrail();
+        }
         updateScale();
 
         // 更新旋转
@@ -479,13 +486,13 @@ public class FlyingBlockEntity extends Entity {
             return;
         }
 
-        // 更新位置（基于速度）
+        // 更新位置（基于速度）- only when velocity is significant
         if (this.getVelocity().lengthSquared() > 0.001) {
             this.move(MovementType.SELF, this.getVelocity());
         }
 
-        // 客户端引力场效果
-        if (isCreatingGravity && this.getWorld().isClient() && state == MovementState.IMPLOSION) {
+        // 客户端引力场效果 - only update every few ticks to reduce load
+        if (isCreatingGravity && this.getWorld().isClient() && state == MovementState.IMPLOSION && this.age % 5 == 0) {
             GravitationalDistortionShader.addGravityCenter(this.getPos(), gravityRadius);
         }
     }

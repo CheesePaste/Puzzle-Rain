@@ -54,7 +54,7 @@ public class PuzzleRain implements ModInitializer {
 
 		LOGGER.info("Puzzle Rain mod initialized!");
 		instance = this; // 设置实例
-		// 在世界渲染后应用扭曲效果
+		ModItems.initialize();
 
 
 

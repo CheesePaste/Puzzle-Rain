@@ -47,6 +47,7 @@ public class IronBlockWandItem extends Item {
                                            net.minecraft.util.math.Direction side) {
         FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,world,player,pos, world.getBlockState(pos));
         f.setPosition(player.getPos());
+        f.target=player;
         PuzzleRain.LOGGER.info("Create");
         world.spawnEntity(f);
     }

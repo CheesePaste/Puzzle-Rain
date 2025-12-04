@@ -12,7 +12,7 @@ import net.minecraft.world.World;
 import java.util.NoSuchElementException;
 
 public class FollowingEntity extends BaseBlockEntity implements Targetable{
-    Entity target;
+    public Entity target;
     float closeDistance=1;
     public FollowingEntity(EntityType<?> type, World world, Entity target, BlockPos pos, BlockState state) {
 
@@ -32,6 +32,8 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable{
             this.addVelocity(this.getDir().multiply(0.1));
             this.move(MovementType.SELF, this.getVelocity());
             //this.setPosition(this.target.getPos());
+        }else{
+            PuzzleRain.LOGGER.info("FUCK");
         }
         //this.move(MovementType.SELF, new Vec3d(0,1,0));
         //PuzzleRain.LOGGER.info("FUCK");

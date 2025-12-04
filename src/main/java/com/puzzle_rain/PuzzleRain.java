@@ -2,6 +2,7 @@ package com.puzzle_rain;
 
 import com.puzzle_rain.command.PuzzleRainCommand;
 import com.puzzle_rain.entity.FlyingBlockEntity;
+import com.puzzle_rain.entity.FollowingEntity;
 import com.puzzle_rain.entity.ModEntities;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -14,6 +15,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.server.world.ServerWorld;
@@ -87,7 +89,16 @@ public class PuzzleRain implements ModInitializer {
 			while (KeyBindings.addEmitterPointKey.wasPressed()){
 				addPlayerPositionToEmitterPoints(client.player);
 			}
+			while (KeyBindings.generateFollowingBlock.wasPressed()){
+				FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,client.world,client.player,client.player.getBlockPos(), Blocks.DIRT.getDefaultState());
+				f.setPosition(client.player.getPos());
+				PuzzleRain.LOGGER.info("create");
+				client.world.spawnEntity(f);
+			}
+
 		});
+
+
 
 
 	}

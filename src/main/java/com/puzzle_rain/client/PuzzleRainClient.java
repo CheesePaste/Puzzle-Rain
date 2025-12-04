@@ -29,5 +29,7 @@ public class PuzzleRainClient implements ClientModInitializer {
 
         EntityRendererRegistry.register(ModEntities.FLYING_BLOCK_ENTITY,
                 BaseBlockEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.FollowingEntity,
+                BaseBlockEntityRenderer::new);
     }
 }

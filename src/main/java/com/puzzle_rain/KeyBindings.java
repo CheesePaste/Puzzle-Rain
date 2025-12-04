@@ -8,6 +8,7 @@ import org.lwjgl.glfw.GLFW;
 public class KeyBindings {
     public static KeyBinding openConfigKey;
     public static KeyBinding addEmitterPointKey;
+    public static KeyBinding generateFollowingBlock;
 
     public static void register() {
         openConfigKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -23,5 +24,8 @@ public class KeyBindings {
                 GLFW.GLFW_KEY_I,
                 KeyBinding.GAMEPLAY_CATEGORY
         ));
+        generateFollowingBlock = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.puzzle-rain.GFB",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_G,KeyBinding.GAMEPLAY_CATEGORY));
     }
 }

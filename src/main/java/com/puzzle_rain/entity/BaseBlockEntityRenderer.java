@@ -1,7 +1,7 @@
 package com.puzzle_rain.entity;
 
 import com.puzzle_rain.PuzzleRain;
-import com.puzzle_rain.entity.FlyingBlockEntity;
+import com.puzzle_rain.entity.BaseBlockEntity;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -22,13 +22,13 @@ import org.joml.Matrix4f;
 
 import java.util.List;
 
-public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
+public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
     public BaseBlockEntityRenderer(EntityRendererFactory.Context ctx) {
         super(ctx);
     }
 
     @Override
-    public void render(FlyingBlockEntity entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+    public void render(BaseBlockEntity entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
         BlockState blockState = entity.getBlockState();
         light = 0xF000F0;
         if (blockState == null || blockState.getRenderType() != BlockRenderType.MODEL) {
@@ -65,7 +65,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
     }
 
     // 渲染球形能量场
-    private void renderEnergyField(FlyingBlockEntity entity, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {
+    private void renderEnergyField(BaseBlockEntity entity, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {
         // 注意：RenderLayer.getEnergySwirl 需要纹理，如果纹理路径不对也会紫黑或者不显示
         Identifier texture = Identifier.of("textures/entity/beacon_beam.png");
         VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEnergySwirl(texture,
@@ -143,7 +143,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
     }
 
     // 渲染移动轨迹
-    private void renderTrail(FlyingBlockEntity entity, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
+    private void renderTrail(BaseBlockEntity entity, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
         List<Vec3d> trail = entity.getTrailPositions().subList(0,Math.max(0,entity.getTrailPositions().size()-10));
         if (trail.size() < 2) return;
 
@@ -187,7 +187,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
     }
 
     // 渲染方块残影轨迹
-//    private void renderBlockTrail(FlyingBlockEntity entity, BlockState blockState, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {
+//    private void renderBlockTrail(BaseBlockEntity entity, BlockState blockState, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {
 //        List<Vec3d> trail = entity.getTrailPositions();
 //        if (trail.isEmpty() || blockState == null) return;
 //
@@ -238,7 +238,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
 //        }
 //    }
 
-    private void renderBlockTrail(FlyingBlockEntity entity, BlockState blockState, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {
+    private void renderBlockTrail(BaseBlockEntity entity, BlockState blockState, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {
         List<Vec3d> trail = entity.getTrailPositions();
         if (trail.isEmpty() || blockState == null) return;
 
@@ -331,7 +331,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
     }
 
     @Override
-    public Identifier getTexture(FlyingBlockEntity entity) {
+    public Identifier getTexture(BaseBlockEntity entity) {
         return null; // 我们使用方块渲染，不需要实体纹理
     }
 }

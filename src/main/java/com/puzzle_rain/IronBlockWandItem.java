@@ -1,5 +1,8 @@
 package com.puzzle_rain;
 
+import com.puzzle_rain.entity.FollowingEntity;
+import com.puzzle_rain.entity.ModEntities;
+import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -29,6 +32,7 @@ public class IronBlockWandItem extends Item {
             onRightClickBlockServer(world, player, hand, context.getBlockPos(), context.getSide());
         } else {
             // 客户端逻辑
+
             onRightClickBlockClient(world, player, hand, context.getBlockPos(), context.getSide());
         }
 
@@ -41,8 +45,10 @@ public class IronBlockWandItem extends Item {
     protected void onRightClickBlockServer(World world, PlayerEntity player, Hand hand,
                                            net.minecraft.util.math.BlockPos pos,
                                            net.minecraft.util.math.Direction side) {
-        // TODO: 实现服务端右键方块功能
-        // 示例：触发方块动画效果
+        FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,world,player,pos, world.getBlockState(pos));
+        f.setPosition(player.getPos());
+        PuzzleRain.LOGGER.info("Create");
+        world.spawnEntity(f);
     }
 
     /**

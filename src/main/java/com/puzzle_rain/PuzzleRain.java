@@ -89,12 +89,12 @@ public class PuzzleRain implements ModInitializer {
 			while (KeyBindings.addEmitterPointKey.wasPressed()){
 				addPlayerPositionToEmitterPoints(client.player);
 			}
-			while (KeyBindings.generateFollowingBlock.wasPressed()){
-				FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,client.world,client.player,client.player.getBlockPos(), Blocks.DIRT.getDefaultState());
-				f.setPosition(client.player.getPos());
-				PuzzleRain.LOGGER.info("create");
-				client.world.spawnEntity(f);
-			}
+//			while (KeyBindings.generateFollowingBlock.wasPressed()){
+//				FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,client.world,client.player,client.player.getBlockPos(), Blocks.DIRT.getDefaultState());
+//				f.setPosition(client.player.getPos());
+//				PuzzleRain.LOGGER.info("create");
+//				client.world.spawnEntity(f);
+//			}
 
 		});
 

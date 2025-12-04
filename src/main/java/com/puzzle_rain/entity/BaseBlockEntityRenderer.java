@@ -22,8 +22,8 @@ import org.joml.Matrix4f;
 
 import java.util.List;
 
-public class FlyingBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
-    public FlyingBlockEntityRenderer(EntityRendererFactory.Context ctx) {
+public class BaseBlockEntityRenderer extends EntityRenderer<FlyingBlockEntity> {
+    public BaseBlockEntityRenderer(EntityRendererFactory.Context ctx) {
         super(ctx);
     }
 

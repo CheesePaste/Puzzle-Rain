@@ -2,7 +2,7 @@ package com.puzzle_rain.client;
 
 import com.puzzle_rain.GravitationalDistortionShader;
 import com.puzzle_rain.PuzzleRain;
-import com.puzzle_rain.entity.FlyingBlockEntityRenderer;
+import com.puzzle_rain.entity.BaseBlockEntityRenderer;
 import com.puzzle_rain.entity.ModEntities;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback;
@@ -28,6 +28,6 @@ public class PuzzleRainClient implements ClientModInitializer {
 
 
         EntityRendererRegistry.register(ModEntities.FLYING_BLOCK_ENTITY,
-                FlyingBlockEntityRenderer::new);
+                BaseBlockEntityRenderer::new);
     }
 }

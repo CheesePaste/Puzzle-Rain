@@ -52,8 +52,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                            @NotNull BlockPos pos, @NotNull BlockState state) {
         super(type, world, pos, state);
         this.target = target;
-        this.setNoGravity(false);
-        this.setOnGround(true);
 
     }
 
@@ -169,13 +167,13 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
     @Override
     public void tick() {
+        // 先调用父类的tick，这会更新位置、速度、重力等
         super.tick();
+        debugPhysics();
 
-        // 更新地面状态
-        this.isOnGround = this.isOnGround();
+            // 更新地面状态（应该在super.tick()之后）
+            this.isOnGround = this.isOnGround();
 
-        // 只在服务器端执行逻辑
-        //if (!this.getWorld().isClient()) {
             // 确保目标是最新的
             if (this.target == null || !this.target.isAlive()) {
                 refreshTarget();
@@ -183,29 +181,28 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
             // 如果没有目标，停止移动
             if (this.target == null) {
-                if (this.getVelocity().lengthSquared() > 0.01) {
-                    this.setVelocity(Vec3d.ZERO);
+                if (this.getVelocity().horizontalLengthSquared() > 0.01) {
+                    // 只停止水平移动，不影响重力
+                    Vec3d currentVel = this.getVelocity();
+                    this.setVelocity(new Vec3d(0, currentVel.y, 0));
                 }
                 return;
             }
 
             // 计算到目标的距离
-            double distanceToTarget = this.getPos().distanceTo(target.getPos());
+            double distanceToTarget = this.getPos().distanceTo(this.target.getPos());
 
-            // 如果距离足够近，停止移动
-            if (distanceToTarget <= CLOSE_DISTANCE) {
-                if (this.getVelocity().lengthSquared() > 0.01) {
-                    this.setVelocity(Vec3d.ZERO);
-                    //.info("Reached target, stopping at distance: {}", distanceToTarget);
+            // 如果距离足够近，停止水平移动
+            if (isClose()) {
+                Vec3d currentVel = this.getVelocity();
+                if (currentVel.horizontalLengthSquared() > 0.01) {
+                    this.setVelocity(new Vec3d(0, currentVel.y, 0));
                 }
                 return;
             }
 
             // 执行移动逻辑
             processMovement(distanceToTarget);
-        //}
-
-        // 调试信息
     }
 
     private void processMovement(double distanceToTarget) {
@@ -214,11 +211,16 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             jumpTimer--;
         }
 
+        // 添加调试日志查看状态
+        if (this.age % 20 == 0) {
+            System.out.println("isOnGround: " + isOnGround + ", jumpTimer: " + jumpTimer + ", velocityY: " + this.getVelocity().y);
+        }
+
         // 如果在地面上且跳跃计时器为0，准备跳跃
-        if (isOnGround && jumpTimer == 0 && distanceToTarget > CLOSE_DISTANCE * 2) {
+        if (isOnGround && jumpTimer <= 0 && distanceToTarget > CLOSE_DISTANCE * 2) {
             shouldJump = true;
             jumpTimer = JUMP_COOLDOWN;
-            //.info("Preparing to jump towards target (distance: {})", distanceToTarget);
+            System.out.println("准备跳跃！距离目标: " + distanceToTarget);
         }
 
         // 执行跳跃
@@ -235,6 +237,18 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
         // 应用速度和限制
         applyMovement();
+    }
+    private void debugPhysics() {
+        if (this.age % 20 == 0) {  // 每秒一次
+            System.out.println("=== Physics Debug ===");
+            System.out.println("Position: " + this.getPos());
+            System.out.println("Velocity: " + this.getVelocity());
+            System.out.println("isOnGround: " + this.isOnGround());
+            System.out.println("hasNoGravity: " + this.hasNoGravity());
+            System.out.println("isOnGround (field): " + this.isOnGround);
+            System.out.println("Distance to target: " + (this.target != null ? this.getPos().distanceTo(this.target.getPos()) : "No target"));
+            System.out.println("==================");
+        }
     }
 
     private void jumpTowardTarget() {

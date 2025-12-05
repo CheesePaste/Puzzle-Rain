@@ -175,7 +175,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         this.isOnGround = this.isOnGround();
 
         // 只在服务器端执行逻辑
-        if (!this.getWorld().isClient()) {
+        //if (!this.getWorld().isClient()) {
             // 确保目标是最新的
             if (this.target == null || !this.target.isAlive()) {
                 refreshTarget();
@@ -203,7 +203,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
             // 执行移动逻辑
             processMovement(distanceToTarget);
-        }
+        //}
 
         // 调试信息
     }

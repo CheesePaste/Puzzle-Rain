@@ -1,5 +1,6 @@
 package com.puzzle_rain.entity;
 
+import com.puzzle_rain.PuzzleRain;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
@@ -9,68 +10,105 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
+/**
+ * 基础方块实体类
+ * 提供方块状态存储和轨迹跟踪功能
+ */
 public abstract class BaseBlockEntity extends Entity {
-    // 公共字段
-    protected int blockStateId;
-    protected final List<Vec3d> trailPositions = new ArrayList<>();
-    protected static final int MAX_TRAIL_LENGTH = 25;
+    // Logger
+    protected final Logger LOGGER = PuzzleRain.LOGGER;
 
-    // 跟踪数据
-    public static final TrackedData<Integer> BLOCK_STATE_ID =
+    // 常量
+    protected static final int MAX_TRAIL_LENGTH = 25;
+    protected static final TrackedData<Integer> BLOCK_STATE_ID =
             DataTracker.registerData(BaseBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
-    // 构造函数
+    // 字段
+    protected int blockStateId;
+    protected final List<Vec3d> trailPositions = new ArrayList<>();
+    private int debugTickCounter = 0;
+    private static final int DEBUG_LOG_INTERVAL = 100; // 每100 tick记录一次调试信息
+
+    // ================= 构造方法 =================
+
     protected BaseBlockEntity(EntityType<?> type, World world) {
         super(type, world);
-        this.noClip = true;
-        this.setNoGravity(true);
+        logDebug("BaseBlockEntity created with default constructor");
     }
 
     protected BaseBlockEntity(EntityType<?> type, World world, BlockPos pos, BlockState blockState) {
         this(type, world);
         this.setPosition(Vec3d.ofCenter(pos));
         this.setBlockState(blockState);
-        this.noClip = true;
+        logDebug("BaseBlockEntity created at {} with block state: {}", pos, blockState);
     }
 
-    // 公共方法
-    public void updateTrail() {
-        trailPositions.add(0, this.getPos());
-        while (trailPositions.size() > MAX_TRAIL_LENGTH) {
-            trailPositions.remove(trailPositions.size() - 1);
-        }
+    // ================= 数据跟踪 =================
+
+    @Override
+    protected void initDataTracker(DataTracker.Builder builder) {
+        builder.add(BLOCK_STATE_ID, 0);
+        logDebug("Data tracker initialized");
     }
 
-    public void setBlockState(BlockState blockState) {
+    // ================= 方块状态管理 =================
+
+    public void setBlockState(@NotNull BlockState blockState) {
+        int oldId = this.blockStateId;
         this.blockStateId = Block.getRawIdFromState(blockState);
+
         if (!this.getWorld().isClient()) {
             this.dataTracker.set(BLOCK_STATE_ID, blockStateId);
+            logDebug("Block state updated: {} -> {} (raw id: {})",
+                    Block.getStateFromRawId(oldId), blockState, blockStateId);
         }
     }
 
-    public BlockState getBlockState() {
-        return Block.getStateFromRawId(this.dataTracker.get(BLOCK_STATE_ID));
+    public @NotNull BlockState getBlockState() {
+        BlockState state = Block.getStateFromRawId(this.dataTracker.get(BLOCK_STATE_ID));
+        if (state == null) {
+            logWarning("Failed to get block state from raw id: {}", this.dataTracker.get(BLOCK_STATE_ID));
+            return net.minecraft.block.Blocks.AIR.getDefaultState();
+        }
+        return state;
     }
 
     public int getBlockStateId() {
         return this.blockStateId;
     }
 
-    public List<Vec3d> getTrailPositions() {
-        return trailPositions;
+    // ================= 轨迹管理 =================
+
+    public void updateTrail() {
+        Vec3d currentPos = this.getPos();
+        trailPositions.add(0, currentPos);
+
+        while (trailPositions.size() > MAX_TRAIL_LENGTH) {
+            trailPositions.remove(trailPositions.size() - 1);
+        }
+
+        if (this.age % 100 == 0) {
+            logDebug("Trail updated. Current size: {}/{}", trailPositions.size(), MAX_TRAIL_LENGTH);
+        }
     }
 
+    public @NotNull List<Vec3d> getTrailPositions() {
+        return new ArrayList<>(trailPositions);
+    }
 
-
-    // 轨迹预测（可选）
-    public List<Vec3d> getPredictedTrail(float deltaTime, int steps) {
+    public @NotNull List<Vec3d> getPredictedTrail(float deltaTime, int steps) {
         List<Vec3d> predicted = new ArrayList<>();
         Vec3d currentPos = this.getPos();
         Vec3d velocity = this.getVelocity();
@@ -80,43 +118,79 @@ public abstract class BaseBlockEntity extends Entity {
             Vec3d predictedPos = currentPos.add(velocity.multiply(time));
             predicted.add(predictedPos);
         }
+
         return predicted;
     }
 
-
-    // Entity 方法重写
-    @Override
-    protected void initDataTracker(DataTracker.Builder builder) {
-        builder.add(BLOCK_STATE_ID, 0);
-    }
+    // ================= Entity方法重写 =================
 
     @Override
     public void tick() {
         super.tick();
         this.age++;
+
+        // 更新轨迹
         updateTrail();
 
-
+        // 定期记录调试信息
+        debugTickCounter++;
+        if (debugTickCounter >= DEBUG_LOG_INTERVAL) {
+            logDebug("Tick #{}, Position: {}, Velocity: {}, OnGround: {}, Trail size: {}",
+                    this.age, this.getPos(), this.getVelocity(), this.isOnGround(), trailPositions.size());
+            debugTickCounter = 0;
+        }
     }
 
-    public abstract boolean isNoClip();
-
     @Override
-    public void writeCustomDataToNbt(NbtCompound nbt) {
+    public void writeCustomDataToNbt(@NotNull NbtCompound nbt) {
         nbt.putInt("BlockState", this.blockStateId);
         nbt.putInt("Age", this.age);
+
+        // 保存轨迹数据（可选）
+        if (!trailPositions.isEmpty()) {
+            NbtCompound trailNbt = new NbtCompound();
+            trailNbt.putInt("Size", trailPositions.size());
+            for (int i = 0; i < trailPositions.size(); i++) {
+                Vec3d pos = trailPositions.get(i);
+                trailNbt.putDouble("X" + i, pos.x);
+                trailNbt.putDouble("Y" + i, pos.y);
+                trailNbt.putDouble("Z" + i, pos.z);
+            }
+            nbt.put("Trail", trailNbt);
+        }
+
+        logDebug("Data written to NBT. BlockStateId: {}, Age: {}", blockStateId, age);
     }
 
     @Override
-    public void readCustomDataFromNbt(NbtCompound nbt) {
-        if (nbt.contains("BlockState")) {
+    public void readCustomDataFromNbt(@NotNull NbtCompound nbt) {
+        if (nbt.contains("BlockState", NbtElement.INT_TYPE)) {
             this.blockStateId = nbt.getInt("BlockState");
             this.dataTracker.set(BLOCK_STATE_ID, this.blockStateId);
         }
-        if (nbt.contains("Age")) {
+
+        if (nbt.contains("Age", NbtElement.INT_TYPE)) {
             this.age = nbt.getInt("Age");
         }
+
+        // 读取轨迹数据（可选）
+        if (nbt.contains("Trail", NbtElement.COMPOUND_TYPE)) {
+            NbtCompound trailNbt = nbt.getCompound("Trail");
+            int size = trailNbt.getInt("Size");
+            trailPositions.clear();
+            for (int i = 0; i < size; i++) {
+                double x = trailNbt.getDouble("X" + i);
+                double y = trailNbt.getDouble("Y" + i);
+                double z = trailNbt.getDouble("Z" + i);
+                trailPositions.add(new Vec3d(x, y, z));
+            }
+        }
+
+        logDebug("Data read from NBT. BlockStateId: {}, Age: {}, Trail positions: {}",
+                blockStateId, age, trailPositions.size());
     }
+
+    // ================= 碰撞相关方法 =================
 
     @Override
     public boolean doesNotCollide(double offsetX, double offsetY, double offsetZ) {
@@ -134,21 +208,19 @@ public abstract class BaseBlockEntity extends Entity {
     }
 
     @Override
-    public boolean hasNoGravity() {
-        return true;
-    }
-
-    @Override
     public boolean isAlive() {
         return !this.isRemoved();
     }
 
-    // 碰撞相关
     @Override
-    protected void pushOutOfBlocks(double x, double y, double z) {}
+    protected void pushOutOfBlocks(double x, double y, double z) {
+        // 空实现
+    }
 
     @Override
-    protected void onBlockCollision(BlockState state) {}
+    protected void onBlockCollision(BlockState state) {
+        // 空实现
+    }
 
     @Override
     public boolean collidesWith(Entity other) {
@@ -166,7 +238,9 @@ public abstract class BaseBlockEntity extends Entity {
     }
 
     @Override
-    protected void checkBlockCollision() {}
+    protected void checkBlockCollision() {
+        // 空实现
+    }
 
     @Override
     protected Vec3d adjustMovementForPiston(Vec3d movement) {
@@ -180,19 +254,40 @@ public abstract class BaseBlockEntity extends Entity {
 
     @Override
     public boolean canHit() {
+        return true;
+    }
+
+    @Override
+    public void pushAwayFrom(Entity entity) {
+        // 空实现
+    }
+
+    @Override
+    public boolean hasNoGravity() {
         return false;
     }
 
     @Override
     public boolean isCollidable() {
-        return false;
+        return true;
     }
 
     @Override
-    public void pushAwayFrom(Entity entity) {}
-
-    @Override
     public boolean isPushable() {
-        return false;
+        return true;
+    }
+
+    // ================= 调试方法 =================
+
+    protected void logDebug(String message, Object... args) {
+        LOGGER.debug("[{}@{}] {}", this.getClass().getSimpleName(), this.getId(), String.format(message, args));
+    }
+
+    protected void logWarning(String message, Object... args) {
+        LOGGER.warn("[{}@{}] {}", this.getClass().getSimpleName(), this.getId(), String.format(message, args));
+    }
+
+    protected void logError(String message, Object... args) {
+        LOGGER.error("[{}@{}] {}", this.getClass().getSimpleName(), this.getId(), String.format(message, args));
     }
 }

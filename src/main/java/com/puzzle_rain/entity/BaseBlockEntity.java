@@ -99,6 +99,8 @@ public abstract class BaseBlockEntity extends Entity {
 
     }
 
+    public abstract boolean isNoClip();
+
     @Override
     public void writeCustomDataToNbt(NbtCompound nbt) {
         nbt.putInt("BlockState", this.blockStateId);

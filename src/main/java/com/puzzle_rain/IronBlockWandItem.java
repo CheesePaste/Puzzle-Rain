@@ -2,6 +2,7 @@ package com.puzzle_rain;
 
 import com.puzzle_rain.entity.FollowingEntity;
 import com.puzzle_rain.entity.ModEntities;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
@@ -18,51 +19,81 @@ import java.util.Optional;
 
 public class IronBlockWandItem extends Item {
 
-    public IronBlockWandItem(Settings settings) {
-        super(settings);
-    }
 
-    // ==================== 右键方块交互 ====================
-    @Override
-    public ActionResult useOnBlock(ItemUsageContext context) {
-        World world = context.getWorld();
-        PlayerEntity player = context.getPlayer();
-        Hand hand = context.getHand();
-
-        if (!world.isClient) {
-            // 服务端逻辑
-            onRightClickBlockServer(world, player, hand, context.getBlockPos(), context.getSide());
-        } else {
-            // 客户端逻辑
-
-            onRightClickBlockClient(world, player, hand, context.getBlockPos(), context.getSide());
+        public IronBlockWandItem(Settings settings) {
+            super(settings);
         }
 
-        return ActionResult.SUCCESS;
-    }
+        @Override
+        public ActionResult useOnBlock(ItemUsageContext context) {
+            World world = context.getWorld();
+            PlayerEntity player = context.getPlayer();
+            Hand hand = context.getHand();
+            net.minecraft.util.math.BlockPos pos = context.getBlockPos();
 
-    /**
-     * 服务端右键方块处理 - 预留实现
-     */
-    protected void onRightClickBlockServer(World world, PlayerEntity player, Hand hand,
-                                           net.minecraft.util.math.BlockPos pos,
-                                           net.minecraft.util.math.Direction side) {
-        FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,world, player,pos, world.getBlockState(pos));
-        f.setPosition(player.getPos());
+            if (!world.isClient) {
+                // 服务端逻辑 - 破坏方块并生成实体
+                onRightClickBlockServer(world, player, hand, pos, context.getSide());
+            } else {
+                // 客户端逻辑
+                onRightClickBlockClient(world, player, hand, pos, context.getSide());
+            }
 
-        PuzzleRain.LOGGER.info("Create");
-        world.spawnEntity(f);
-    }
+            return ActionResult.SUCCESS;
+        }
 
-    /**
-     * 客户端右键方块处理 - 预留实现
-     */
-    protected void onRightClickBlockClient(World world, PlayerEntity player, Hand hand,
-                                           net.minecraft.util.math.BlockPos pos,
-                                           net.minecraft.util.math.Direction side) {
-        // TODO: 实现客户端右键方块功能
-        // 示例：播放粒子效果或音效
-    }
+        /**
+         * 服务端右键方块处理
+         */
+        protected void onRightClickBlockServer(World world, PlayerEntity player, Hand hand,
+                                               net.minecraft.util.math.BlockPos pos,
+                                               net.minecraft.util.math.Direction side) {
+            // 1. 获取方块状态
+            BlockState blockState = world.getBlockState(pos);
+
+            // 2. 破坏原方块
+            world.breakBlock(pos, false); // false表示不生成掉落物，true表示生成
+
+            // 3. 在方块原位置生成实体
+            FollowingEntity followingEntity = new FollowingEntity(
+                    ModEntities.FollowingEntity,
+                    world,
+                    player,  // 目标设置为玩家
+                    pos,     // 记录原方块位置
+                    blockState  // 传递方块状态
+            );
+
+            // 设置实体位置为原方块的中心位置
+            double spawnX = pos.getX() + 0.5;
+            double spawnY = pos.getY() + 0.5;  // +0.5使实体在方块中间
+            double spawnZ = pos.getZ() + 0.5;
+
+            followingEntity.setPosition(spawnX, spawnY, spawnZ);
+
+            // 设置目标玩家
+            followingEntity.setTarget(player);
+
+            // 添加一些初始速度防止卡住
+            followingEntity.setVelocity(0, 0.1, 0);
+
+            PuzzleRain.LOGGER.info("创建跟随实体，位置：{}, 目标玩家：{}", pos, player.getName().getString());
+            world.spawnEntity(followingEntity);
+        }
+
+        /**
+         * 客户端右键方块处理
+         */
+        protected void onRightClickBlockClient(World world, PlayerEntity player, Hand hand,
+                                               net.minecraft.util.math.BlockPos pos,
+                                               net.minecraft.util.math.Direction side) {
+            // 可以在这里添加客户端效果
+            if (world.isClient) {
+                // 播放方块破坏粒子效果
+                MinecraftClient.getInstance().particleManager.addBlockBreakingParticles(
+                        pos, side
+                );
+            }
+        }
 
     // ==================== 右键实体交互 ====================
     public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, Entity entity, Hand hand) {

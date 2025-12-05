@@ -36,6 +36,11 @@ public class FlyingBlockEntity extends BaseBlockEntity {
         super.tick();
     }
 
+    @Override
+    public boolean isNoClip() {
+        return true;
+    }
+
 
     @Override
     public void remove(RemovalReason reason) {

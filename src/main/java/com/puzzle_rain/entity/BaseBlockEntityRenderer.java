@@ -31,7 +31,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
     public void render(BaseBlockEntity entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
         BlockState blockState = entity.getBlockState();
         light = 0xF000F0;
-        if (blockState == null || blockState.getRenderType() != BlockRenderType.MODEL) {
+        if (blockState.getRenderType() != BlockRenderType.MODEL) {
             return;
         }
 

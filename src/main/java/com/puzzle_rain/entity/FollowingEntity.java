@@ -15,7 +15,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,8 +24,6 @@ import java.util.UUID;
  * 跟随目标实体移动的方块实体
  */
 public class FollowingEntity extends BaseBlockEntity implements Targetable {
-    // Logger
-    private final Logger LOGGER = PuzzleRain.LOGGER;
 
     // 配置参数
     private static final float CLOSE_DISTANCE = 2.0f;
@@ -58,14 +55,12 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         this.setNoGravity(false);
         this.setOnGround(true);
 
-        logDebug("FollowingEntity created at {} targeting {}", pos,
-                target != null ? target.getName().getString() : "null");
     }
 
     public FollowingEntity(EntityType<FollowingEntity> type, World world) {
         super(type, world);
         this.setNoGravity(false);
-        logDebug("FollowingEntity created with default constructor");
+        //.info("FollowingEntity created with default constructor");
     }
 
     // ================= 数据跟踪 =================
@@ -74,7 +69,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
         builder.add(TARGET_UUID, Optional.empty());
-        logDebug("Data tracker initialized with TARGET_UUID");
+       //.info("Data tracker initialized with TARGET_UUID");
     }
 
     // ================= 目标管理 =================
@@ -86,11 +81,9 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         if (target != null) {
             this.dataTracker.set(TARGET_UUID, Optional.of(target.getUuid()));
             targetLostCounter = 0;
-            logDebug("Target set to {} (UUID: {})", target.getName().getString(), target.getUuid());
+            //.info("Target set to {} (UUID: {})", target.getName().getString(), target.getUuid());
         } else {
             this.dataTracker.set(TARGET_UUID, Optional.empty());
-            logDebug("Target cleared. Previous target: {}",
-                    oldTarget != null ? oldTarget.getName().getString() : "null");
         }
     }
 
@@ -117,16 +110,13 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             if (entity != null && entity.isAlive()) {
                 this.target = entity;
                 targetLostCounter = 0;
-                logDebug("Target refreshed: {}", entity.getName().getString());
+                //.info("Target refreshed: {}", entity.getName().getString());
             } else {
                 targetLostCounter++;
                 if (targetLostCounter > MAX_TARGET_LOST_TICKS) {
                     this.target = null;
                     this.dataTracker.set(TARGET_UUID, Optional.empty());
-                    logWarning("Target lost permanently after {} ticks", targetLostCounter);
                 } else if (targetLostCounter % 20 == 0) {
-                    logDebug("Target not found (attempt {}/{})",
-                            targetLostCounter / 20, MAX_TARGET_LOST_TICKS / 20);
                 }
             }
         }
@@ -146,8 +136,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         nbt.putBoolean("ShouldJump", this.shouldJump);
         nbt.putInt("TargetLostCounter", targetLostCounter);
 
-        logDebug("FollowingEntity data saved. Target: {}, JumpTimer: {}",
-                target != null ? "present" : "null", jumpTimer);
     }
 
     @Override
@@ -159,7 +147,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             this.dataTracker.set(TARGET_UUID, Optional.of(targetUuid));
 
             // 延迟目标查找，因为世界可能还没加载完
-            logDebug("Target UUID loaded from NBT: {}", targetUuid);
+            //.info("Target UUID loaded from NBT: {}", targetUuid);
         }
 
         if (nbt.contains("JumpTimer", NbtElement.INT_TYPE)) {
@@ -174,7 +162,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             this.targetLostCounter = nbt.getInt("TargetLostCounter");
         }
 
-        logDebug("FollowingEntity data loaded. JumpTimer: {}, ShouldJump: {}", jumpTimer, shouldJump);
+        //.info("FollowingEntity data loaded. JumpTimer: {}, ShouldJump: {}", jumpTimer, shouldJump);
     }
 
     // ================= 主逻辑 =================
@@ -208,7 +196,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             if (distanceToTarget <= CLOSE_DISTANCE) {
                 if (this.getVelocity().lengthSquared() > 0.01) {
                     this.setVelocity(Vec3d.ZERO);
-                    logDebug("Reached target, stopping at distance: {}", distanceToTarget);
+                    //.info("Reached target, stopping at distance: {}", distanceToTarget);
                 }
                 return;
             }
@@ -218,11 +206,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         }
 
         // 调试信息
-        if (this.age % 50 == 0) {
-            logDebug("Position: {}, Velocity: {}, OnGround: {}, Target: {}",
-                    this.getPos(), this.getVelocity(), isOnGround,
-                    target != null ? target.getName().getString() : "null");
-        }
     }
 
     private void processMovement(double distanceToTarget) {
@@ -235,7 +218,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         if (isOnGround && jumpTimer == 0 && distanceToTarget > CLOSE_DISTANCE * 2) {
             shouldJump = true;
             jumpTimer = JUMP_COOLDOWN;
-            logDebug("Preparing to jump towards target (distance: {})", distanceToTarget);
+            //.info("Preparing to jump towards target (distance: {})", distanceToTarget);
         }
 
         // 执行跳跃
@@ -272,7 +255,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         );
 
         this.setOnGround(false);
-        logDebug("Jump executed with multiplier: {}", jumpMultiplier);
+        //.info("Jump executed with multiplier: {}", jumpMultiplier);
     }
 
     @Nullable
@@ -341,7 +324,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         if (target != null) {
             boolean close = this.getPos().distanceTo(target.getPos()) <= CLOSE_DISTANCE;
             if (close) {
-                logDebug("Is close to target: {}", close);
+                //.info("Is close to target: {}", close);
             }
             return close;
         }
@@ -358,7 +341,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             // 重置跳跃状态
             this.shouldJump = false;
             if (Math.abs(heightDifference) > 1.0) {
-                logDebug("Landed after fall of {}. Reset jump state.", heightDifference);
+                //.info("Landed after fall of {}. Reset jump state.", heightDifference);
             }
         }
     }

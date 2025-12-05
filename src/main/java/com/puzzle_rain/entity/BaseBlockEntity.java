@@ -15,7 +15,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +26,6 @@ import java.util.UUID;
  * 提供方块状态存储和轨迹跟踪功能
  */
 public abstract class BaseBlockEntity extends Entity {
-    // Logger
-    protected final Logger LOGGER = PuzzleRain.LOGGER;
 
     // 常量
     protected static final int MAX_TRAIL_LENGTH = 25;
@@ -45,14 +42,14 @@ public abstract class BaseBlockEntity extends Entity {
 
     protected BaseBlockEntity(EntityType<?> type, World world) {
         super(type, world);
-        logDebug("BaseBlockEntity created with default constructor");
+        //.info("BaseBlockEntity created with default constructor");
     }
 
     protected BaseBlockEntity(EntityType<?> type, World world, BlockPos pos, BlockState blockState) {
         this(type, world);
         this.setPosition(Vec3d.ofCenter(pos));
         this.setBlockState(blockState);
-        logDebug("BaseBlockEntity created at {} with block state: {}", pos, blockState);
+        //.info("BaseBlockEntity created at {} with block state: {}", pos, blockState);
     }
 
     // ================= 数据跟踪 =================
@@ -60,7 +57,7 @@ public abstract class BaseBlockEntity extends Entity {
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
         builder.add(BLOCK_STATE_ID, 0);
-        logDebug("Data tracker initialized");
+        //.info("Data tracker initialized");
     }
 
     // ================= 方块状态管理 =================
@@ -71,15 +68,15 @@ public abstract class BaseBlockEntity extends Entity {
 
         if (!this.getWorld().isClient()) {
             this.dataTracker.set(BLOCK_STATE_ID, blockStateId);
-            logDebug("Block state updated: {} -> {} (raw id: {})",
-                    Block.getStateFromRawId(oldId), blockState, blockStateId);
+            //.info("Block state updated: {} -> {} (raw id: {})",
+                    //Block.getStateFromRawId(oldId), blockState, blockStateId);
         }
     }
 
     public @NotNull BlockState getBlockState() {
         BlockState state = Block.getStateFromRawId(this.dataTracker.get(BLOCK_STATE_ID));
         if (state == null) {
-            logWarning("Failed to get block state from raw id: {}", this.dataTracker.get(BLOCK_STATE_ID));
+            //.info("Failed to get block state from raw id: {}", this.dataTracker.get(BLOCK_STATE_ID));
             return net.minecraft.block.Blocks.AIR.getDefaultState();
         }
         return state;
@@ -100,7 +97,7 @@ public abstract class BaseBlockEntity extends Entity {
         }
 
         if (this.age % 100 == 0) {
-            logDebug("Trail updated. Current size: {}/{}", trailPositions.size(), MAX_TRAIL_LENGTH);
+            //.info("Trail updated. Current size: {}/{}", trailPositions.size(), MAX_TRAIL_LENGTH);
         }
     }
 
@@ -135,8 +132,6 @@ public abstract class BaseBlockEntity extends Entity {
         // 定期记录调试信息
         debugTickCounter++;
         if (debugTickCounter >= DEBUG_LOG_INTERVAL) {
-            logDebug("Tick #{}, Position: {}, Velocity: {}, OnGround: {}, Trail size: {}",
-                    this.age, this.getPos(), this.getVelocity(), this.isOnGround(), trailPositions.size());
             debugTickCounter = 0;
         }
     }
@@ -159,7 +154,7 @@ public abstract class BaseBlockEntity extends Entity {
             nbt.put("Trail", trailNbt);
         }
 
-        logDebug("Data written to NBT. BlockStateId: {}, Age: {}", blockStateId, age);
+        //.info("Data written to NBT. BlockStateId: {}, Age: {}", blockStateId, age);
     }
 
     @Override
@@ -186,8 +181,6 @@ public abstract class BaseBlockEntity extends Entity {
             }
         }
 
-        logDebug("Data read from NBT. BlockStateId: {}, Age: {}, Trail positions: {}",
-                blockStateId, age, trailPositions.size());
     }
 
     // ================= 碰撞相关方法 =================
@@ -277,17 +270,4 @@ public abstract class BaseBlockEntity extends Entity {
         return true;
     }
 
-    // ================= 调试方法 =================
-
-    protected void logDebug(String message, Object... args) {
-        LOGGER.debug("[{}@{}] {}", this.getClass().getSimpleName(), this.getId(), String.format(message, args));
-    }
-
-    protected void logWarning(String message, Object... args) {
-        LOGGER.warn("[{}@{}] {}", this.getClass().getSimpleName(), this.getId(), String.format(message, args));
-    }
-
-    protected void logError(String message, Object... args) {
-        LOGGER.error("[{}@{}] {}", this.getClass().getSimpleName(), this.getId(), String.format(message, args));
-    }
 }

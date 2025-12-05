@@ -54,12 +54,14 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         this.target = target;
         this.setNoGravity(false);
         this.setOnGround(true);
+        this.MAX_TRAIL_LENGTH=200;
 
     }
 
     public FollowingEntity(EntityType<FollowingEntity> type, World world) {
         super(type, world);
         this.setNoGravity(false);
+        this.MAX_TRAIL_LENGTH=200;
         //.info("FollowingEntity created with default constructor");
     }
 

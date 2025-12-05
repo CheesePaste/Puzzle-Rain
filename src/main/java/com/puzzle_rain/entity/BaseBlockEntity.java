@@ -28,7 +28,7 @@ import java.util.UUID;
 public abstract class BaseBlockEntity extends Entity {
 
     // 常量
-    protected static final int MAX_TRAIL_LENGTH = 25;
+    protected int MAX_TRAIL_LENGTH = 25;
     public static final TrackedData<Integer> BLOCK_STATE_ID =
             DataTracker.registerData(BaseBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
@@ -90,6 +90,7 @@ public abstract class BaseBlockEntity extends Entity {
 
     public void updateTrail() {
         Vec3d currentPos = this.getPos();
+
         trailPositions.add(0, currentPos);
 
         while (trailPositions.size() > MAX_TRAIL_LENGTH) {

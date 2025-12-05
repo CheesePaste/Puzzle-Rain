@@ -49,7 +49,7 @@ public abstract class BaseBlockEntity extends Entity {
         this(type, world);
         this.setPosition(Vec3d.ofCenter(pos));
         this.setBlockState(blockState);
-        //.info("BaseBlockEntity created at {} with block state: {}", pos, blockState);
+        this.setNoGravity(false);  // 确保重力启用
     }
 
     // ================= 数据跟踪 =================

@@ -32,7 +32,7 @@ public abstract class BaseBlockEntity extends Entity {
 
     // 常量
     protected static final int MAX_TRAIL_LENGTH = 25;
-    protected static final TrackedData<Integer> BLOCK_STATE_ID =
+    public static final TrackedData<Integer> BLOCK_STATE_ID =
             DataTracker.registerData(BaseBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
     // 字段

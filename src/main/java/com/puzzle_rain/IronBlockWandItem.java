@@ -14,8 +14,6 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
 
-import java.util.Optional;
-
 public class IronBlockWandItem extends Item {
 
     public IronBlockWandItem(Settings settings) {
@@ -47,9 +45,8 @@ public class IronBlockWandItem extends Item {
     protected void onRightClickBlockServer(World world, PlayerEntity player, Hand hand,
                                            net.minecraft.util.math.BlockPos pos,
                                            net.minecraft.util.math.Direction side) {
-        FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,world, player,pos, world.getBlockState(pos));
-        f.setPosition(player.getPos());
-
+        FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,world,player,pos, world.getBlockState(pos));
+        f.setTarget(player);
         PuzzleRain.LOGGER.info("Create");
         world.spawnEntity(f);
     }

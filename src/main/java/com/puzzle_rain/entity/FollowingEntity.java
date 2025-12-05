@@ -9,127 +9,125 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
-public class FollowingEntity extends BaseBlockEntity implements Targetable {
-
-    // 定义一个追踪数据，用来存目标的 Entity ID (Integer)
-    // 这里的 0 是默认值，代表没有目标
-    private static final TrackedData<Integer> TARGET_ID = DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.INTEGER);
-
-    // 辅助变量，用于在加载NBT时临时存储UUID，直到世界加载完毕找到实体
-    private UUID targetUuid;
-
-    float closeDistance = 1;
-
+public class FollowingEntity extends BaseBlockEntity implements Targetable{
+    Entity target;
+    private static final TrackedData<Optional<UUID>> TARGET_UUID =
+            DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.OPTIONAL_UUID);
+    float closeDistance=1;
     public FollowingEntity(EntityType<?> type, World world, Entity target, BlockPos pos, BlockState state) {
-        super(type, world, pos, state);
-        this.setTarget(target);
+
+        super(type, world,pos,state);
+        this.target=target;
     }
 
     public FollowingEntity(EntityType<FollowingEntity> followingEntityEntityType, World world) {
-        super(followingEntityEntityType, world);
+        super(followingEntityEntityType,world);
     }
 
+
     @Override
-    protected void initDataTracker(DataTracker.Builder builder) {
+    protected void initDataTracker( DataTracker.Builder builder) {
         super.initDataTracker(builder);
-        // 初始化数据，默认为 -1 或 0 (代表无目标)
-        builder.add(TARGET_ID, 0);
+        builder.add(TARGET_UUID, Optional.empty());
     }
 
-    // 设置目标的辅助方法
-    public void setTarget(Entity entity) {
-        if (entity != null) {
-            this.dataTracker.set(TARGET_ID, entity.getId());
-            this.targetUuid = entity.getUuid(); // 同时记录UUID用于保存
-        }
-    }
-
-    // 获取目标的方法
-    public Entity getTarget() {
-        int id = this.dataTracker.get(TARGET_ID);
-        if (id == 0) return null;
-        return this.getWorld().getEntityById(id);
-    }
-
-    @Override
-    public void tick() {
-        // 如果是从磁盘加载的，且有UUID但还没有找到实体ID（因为世界刚加载），尝试通过UUID找回实体
-        if (!this.getWorld().isClient && this.targetUuid != null && this.dataTracker.get(TARGET_ID) == 0) {
-            if (this.getWorld() instanceof ServerWorld serverWorld) {
-                Entity e = serverWorld.getEntity(this.targetUuid);
-                if (e != null) {
-                    this.setTarget(e);
-                }
-            }
-        }
-
-        Entity target = getTarget(); // 使用 getter 获取同步后的目标
-
+    // 添加设置目标的方法
+    public void setTarget(Entity target) {
+        this.target = target;
         if (target != null) {
-            // 服务器端逻辑
-            if (!this.getWorld().isClient) {
-                this.addVelocity(this.getDir().multiply(0.1));
-                this.move(MovementType.SELF, this.getDir());
-            }
-            // 客户端也可以获取到 target 引用进行渲染插值（如果需要）
+            this.dataTracker.set(TARGET_UUID, Optional.of(target.getUuid()));
         } else {
-            // 只有在真的没有目标时才会进入这里
-            PuzzleRain.LOGGER.info("No Target");
+            this.dataTracker.set(TARGET_UUID, Optional.empty());
         }
-
-        super.tick();
     }
 
-    @Override
-    public Vec3d getDir() {
-        Entity target = getTarget();
-        if (target != null) {
-            return target.getPos().subtract(this.getPos()).normalize();
+    // 从数据追踪器重新获取目标
+    private void refreshTarget() {
+        //if (this.getWorld().isClient) return; // 只在服务器上执行
+
+        Optional<UUID> uuid = this.dataTracker.get(TARGET_UUID);
+        if (uuid.isPresent()) {
+            Entity entity = this.getWorld().getPlayerByUuid(uuid.get());
+            if (entity != null && entity.isAlive()) {
+                this.target = entity;
+            } else {
+                this.target = null;
+                this.dataTracker.set(TARGET_UUID, Optional.empty());
+            }
         }
-        return Vec3d.ZERO; // 避免返回 null 导致崩溃
     }
-
-    @Override
-    public boolean isClose() {
-        Entity target = getTarget();
-        if (target != null && this.getPos().isWithinRangeOf(target.getPos(), closeDistance, closeDistance)) {
-            return true;
-        }
-        // 不要在这里抛出 RuntimeException，游戏里任何情况都可能发生（比如目标掉线/死亡），直接返回 false 更安全
-        return false;
-    }
-
-    // --- NBT 保存与读取 (持久化) ---
-
     @Override
     public void writeCustomDataToNbt(NbtCompound nbt) {
         super.writeCustomDataToNbt(nbt);
-        // 保存目标的 UUID，因为 Entity ID 重启后会变，UUID 不会变
-        if (this.targetUuid != null) {
-            nbt.putUuid("TargetUuid", this.targetUuid);
-        } else {
-            // 如果当前有这种逻辑，也可以尝试从 getTarget() 获取 UUID
-            Entity t = getTarget();
-            if (t != null) {
-                nbt.putUuid("TargetUuid", t.getUuid());
-            }
+        if (this.target != null) {
+            nbt.putUuid("Target", this.target.getUuid());
         }
     }
 
     @Override
     public void readCustomDataFromNbt(NbtCompound nbt) {
         super.readCustomDataFromNbt(nbt);
-        if (nbt.contains("TargetUuid")) {
-            this.targetUuid = nbt.getUuid("TargetUuid");
+        if (nbt.contains("Target")) {
+            UUID targetUuid = nbt.getUuid("Target");
+            this.dataTracker.set(TARGET_UUID, Optional.of(targetUuid));
+
+            // 服务器端尝试获取实体引用
+            if (true) {
+                Entity entity = this.getWorld().getPlayerByUuid(targetUuid);
+                if (entity != null && entity.isAlive()) {
+                    this.target = entity;
+                }
+            }
         }
+    }
+
+    @Override
+    public void tick() {
+
+        super.tick();
+        // 只在服务器端执行逻辑
+        //if (!this.getWorld().isClient) return;
+
+        // 确保目标是最新的
+        if (this.target == null || !this.target.isAlive()) {
+            refreshTarget();
+        }
+
+        PuzzleRain.LOGGER.info("%s::::NULL:%s".formatted(this.getWorld().isClient,target==null));
+        if (this.target != null) {
+            PuzzleRain.LOGGER.info(target.getName().getString());
+            this.addVelocity(this.getDir().multiply(1f));
+            this.move(MovementType.SELF, this.getVelocity());
+        }
+        this.velocityDirty=true;
+        //this.move(MovementType.SELF, new Vec3d(0,1,0));
+
+    }
+
+    @Override
+    public Vec3d getDir() {
+        if(target!=null){
+            return target.getPos().subtract(this.getPos()).normalize();
+        }
+        return null;
+    }
+
+    @Override
+    public boolean isClose() {
+        if(target!=null&&this.getPos().isWithinRangeOf(target.getPos(),closeDistance,closeDistance)){
+            return true;
+        }
+        if(target==null){
+            throw new RuntimeException("Target is null");
+        }
+        return false;
     }
 }

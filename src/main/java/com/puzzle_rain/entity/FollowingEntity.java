@@ -113,6 +113,11 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable{
     }
 
     @Override
+    public boolean isNoClip() {
+        return false;
+    }
+
+    @Override
     public Vec3d getDir() {
         if(target!=null){
             return target.getPos().subtract(this.getPos()).normalize();

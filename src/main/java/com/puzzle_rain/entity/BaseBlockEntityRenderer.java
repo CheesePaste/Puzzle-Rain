@@ -30,6 +30,14 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
 
     @Override
     public void render(BaseBlockEntity entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+        // 使用插值的旋转角度
+        if (entity instanceof FollowingEntity entity1)
+        {
+            float renderYaw = entity1.getRenderYaw(tickDelta);
+
+            // 应用旋转
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(renderYaw));
+        }
         BlockState blockState = entity.getBlockState();
         light = 0xF000F0;
         if (blockState.getRenderType() != BlockRenderType.MODEL) {

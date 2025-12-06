@@ -135,24 +135,6 @@ public class IronBlockWandItem extends Item {
         }
     }
 
-    /**
-     * 客户端快速切换模式（仅用于预览，实际切换应在服务端完成）
-     */
-    public static void switchToNextModeClient(PlayerEntity player, Hand hand) {
-        PuzzleRain.LOGGER.info("Switch!");
-        if (player == null) return;
-        ItemStack stack = player.getStackInHand(hand);
-        if (stack.isEmpty() || !(stack.getItem() instanceof IronBlockWandItem)) return;
-
-        WandMode currentMode = getMode(stack);
-        WandMode nextMode = currentMode.next();
-
-        // 客户端预览消息
-        player.sendMessage(
-                Text.literal("魔杖模式 -> " + nextMode.getDisplayName()).formatted(Formatting.GOLD),
-                true
-        );
-    }
 
     // ==================== 右键方块交互 ====================
     @Override
@@ -197,9 +179,7 @@ public class IronBlockWandItem extends Item {
         }
 
         // 破坏原方块（对于FOLLOW和STATIC模式）
-        if (mode != WandMode.PLACE) {
-            world.breakBlock(pos, false, player);
-        }
+        world.breakBlock(pos, false, player);
 
         // 播放使用音效
         if (player != null) {
@@ -293,11 +273,10 @@ public class IronBlockWandItem extends Item {
     protected ActionResult onRightClickEntityServer(World world, PlayerEntity player, Hand hand,
                                                     LivingEntity entity, ItemStack stack) {
         // 检查是否为FollowingEntity
-        if (!(entity instanceof FollowingEntity)) {
+        if (!(entity instanceof FollowingEntity followingEntity)) {
             return ActionResult.PASS;
         }
 
-        FollowingEntity followingEntity = (FollowingEntity) entity;
         WandMode mode = getMode(stack);
 
         switch (mode) {

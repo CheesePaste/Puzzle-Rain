@@ -5,9 +5,12 @@ import com.puzzle_rain.ControlEnum;
 import com.puzzle_rain.GravitationalDistortionShader;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.MovementType;
+import net.minecraft.item.ItemStack;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
+import net.minecraft.util.Arm;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -18,7 +21,7 @@ public class FlyingBlockEntity extends BaseBlockEntity {
     private boolean isCreatingGravity = true;
 
     // 构造函数
-    public FlyingBlockEntity(EntityType<?> type, World world) {
+    public FlyingBlockEntity(EntityType<? extends BaseBlockEntity> type, World world) {
         super(type, world);
     }
 
@@ -36,7 +39,10 @@ public class FlyingBlockEntity extends BaseBlockEntity {
         super.tick();
     }
 
-
+    @Override
+    public Arm getMainArm() {
+        return null;
+    }
 
 
     @Override
@@ -46,6 +52,21 @@ public class FlyingBlockEntity extends BaseBlockEntity {
         if (this.getWorld().isClient()) {
             GravitationalDistortionShader.removeGravityCenter(this.getPos());
         }
+    }
+
+    @Override
+    public Iterable<ItemStack> getArmorItems() {
+        return null;
+    }
+
+    @Override
+    public ItemStack getEquippedStack(EquipmentSlot slot) {
+        return null;
+    }
+
+    @Override
+    public void equipStack(EquipmentSlot slot, ItemStack stack) {
+
     }
 
     // 特有方法

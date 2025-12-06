@@ -9,6 +9,7 @@ public class KeyBindings {
     public static KeyBinding openConfigKey;
     public static KeyBinding addEmitterPointKey;
     public static KeyBinding generateFollowingBlock;
+    public static KeyBinding switchWandModeKey;
 
     public static void register() {
         openConfigKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -27,5 +28,13 @@ public class KeyBindings {
         generateFollowingBlock = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.puzzle-rain.GFB",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_G,KeyBinding.GAMEPLAY_CATEGORY));
+        // 注册模式切换按键，默认键位设置为 M
+        switchWandModeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.puzzle-rain.switch_wand_mode", // 用于语言文件的翻译键
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_M, // 可以更改为你喜欢的任何键，如 GLFW.GLFW_KEY_R
+                KeyBinding.GAMEPLAY_CATEGORY
+        ));
     }
+
 }

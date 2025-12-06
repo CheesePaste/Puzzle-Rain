@@ -1,6 +1,7 @@
 package com.puzzle_rain;
 
 import com.puzzle_rain.command.PuzzleRainCommand;
+import com.puzzle_rain.entity.BaseBlockEntity;
 import com.puzzle_rain.entity.FlyingBlockEntity;
 import com.puzzle_rain.entity.FollowingEntity;
 import com.puzzle_rain.entity.ModEntities;
@@ -13,6 +14,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -89,6 +91,8 @@ public class PuzzleRain implements ModInitializer {
 			while (KeyBindings.addEmitterPointKey.wasPressed()){
 				addPlayerPositionToEmitterPoints(client.player);
 			}
+			FabricDefaultAttributeRegistry.register(ModEntities.FollowingEntity, FollowingEntity.createFollowingAttributes());
+			FabricDefaultAttributeRegistry.register(ModEntities.FLYING_BLOCK_ENTITY, BaseBlockEntity.createBaseBlockAttributes());
 //			while (KeyBindings.generateFollowingBlock.wasPressed()){
 //				FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,client.world,client.player,client.player.getBlockPos(), Blocks.DIRT.getDefaultState());
 //				f.setPosition(client.player.getPos());

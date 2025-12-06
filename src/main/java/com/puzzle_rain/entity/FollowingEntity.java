@@ -4,19 +4,25 @@ import com.puzzle_rain.PuzzleRain;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.MovementType;
+import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.Arm;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,7 +74,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         pushable = true;
     }
 
-    public FollowingEntity(EntityType<?> type, World world, @Nullable Entity target,
+    public FollowingEntity(EntityType<? extends BaseBlockEntity> type, World world, @Nullable Entity target,
                            @NotNull BlockPos pos, @NotNull BlockState state) {
         super(type, world, pos, state);
         this.target = target;
@@ -78,6 +84,16 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
 
 
+    }
+    public static DefaultAttributeContainer.Builder createFollowingAttributes() {
+        return BaseBlockEntity.createBaseBlockAttributes()
+                .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0) // 更高的生命值
+                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.25) // 移动速度
+                .add(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, 1.0) // 完全抵抗击退
+                .add(EntityAttributes.GENERIC_GRAVITY, 0.08) // 重力
+                .add(EntityAttributes.GENERIC_STEP_HEIGHT, 0.0) // 可以走上1格高的方块
+                .add(EntityAttributes.GENERIC_SAFE_FALL_DISTANCE, 3.0) // 安全坠落距离
+                .add(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, 0.0); // 无坠落伤害
     }
 
     public FollowingEntity(EntityType<FollowingEntity> type, World world) {
@@ -141,7 +157,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                 if (targetLostCounter > MAX_TARGET_LOST_TICKS) {
                     this.target = null;
                     this.dataTracker.set(TARGET_UUID, Optional.empty());
-                } else if (targetLostCounter % 20 == 0) {
                 }
             }
         }
@@ -190,6 +205,21 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         //.info("FollowingEntity data loaded. JumpTimer: {}, ShouldJump: {}", jumpTimer, shouldJump);
     }
 
+    @Override
+    public Iterable<ItemStack> getArmorItems() {
+        return Collections.singleton(ItemStack.EMPTY);
+    }
+
+    @Override
+    public ItemStack getEquippedStack(EquipmentSlot slot) {
+        return ItemStack.EMPTY;
+    }
+
+    @Override
+    public void equipStack(EquipmentSlot slot, ItemStack stack) {
+
+    }
+
     // ================= 主逻辑 =================
 
 
@@ -226,6 +256,11 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         }
         processMovement();
 
+    }
+
+    @Override
+    public Arm getMainArm() {
+        return null;
     }
 
     private void processMovement() {
@@ -358,9 +393,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         if (onGround) {
             // 重置跳跃状态
             this.shouldJump = false;
-            if (Math.abs(heightDifference) > 1.0) {
-                //.info("Landed after fall of {}. Reset jump state.", heightDifference);
-            }
+            //.info("Landed after fall of {}. Reset jump state.", heightDifference);
         }
     }
 

@@ -5,7 +5,10 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MovementType;
+import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
@@ -25,7 +28,7 @@ import java.util.UUID;
  * 基础方块实体类
  * 提供方块状态存储和轨迹跟踪功能
  */
-public abstract class BaseBlockEntity extends Entity {
+public abstract class BaseBlockEntity extends LivingEntity {
 
     // 常量
     protected int MAX_TRAIL_LENGTH = 25;
@@ -40,12 +43,12 @@ public abstract class BaseBlockEntity extends Entity {
 
     // ================= 构造方法 =================
 
-    protected BaseBlockEntity(EntityType<?> type, World world) {
+    protected BaseBlockEntity(EntityType<? extends LivingEntity> type, World world) {
         super(type, world);
         //.info("BaseBlockEntity created with default constructor");
     }
 
-    protected BaseBlockEntity(EntityType<?> type, World world, BlockPos pos, BlockState blockState) {
+    protected BaseBlockEntity(EntityType<? extends LivingEntity> type, World world, BlockPos pos, BlockState blockState) {
         this(type, world);
         this.setPosition(Vec3d.ofCenter(pos));
         this.setBlockState(blockState);
@@ -56,6 +59,7 @@ public abstract class BaseBlockEntity extends Entity {
 
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
+        super.initDataTracker(builder);
         builder.add(BLOCK_STATE_ID, 0);
         //.info("Data tracker initialized");
     }
@@ -139,6 +143,7 @@ public abstract class BaseBlockEntity extends Entity {
 
     @Override
     public void writeCustomDataToNbt(@NotNull NbtCompound nbt) {
+        super.writeCustomDataToNbt(nbt);
         nbt.putInt("BlockState", this.blockStateId);
         nbt.putInt("Age", this.age);
 
@@ -160,6 +165,7 @@ public abstract class BaseBlockEntity extends Entity {
 
     @Override
     public void readCustomDataFromNbt(@NotNull NbtCompound nbt) {
+        super.readCustomDataFromNbt(nbt);
         if (nbt.contains("BlockState", NbtElement.INT_TYPE)) {
             this.blockStateId = nbt.getInt("BlockState");
             this.dataTracker.set(BLOCK_STATE_ID, this.blockStateId);
@@ -295,6 +301,15 @@ public abstract class BaseBlockEntity extends Entity {
         }
         // 否则为空实现
     }
+    public static DefaultAttributeContainer.Builder createBaseBlockAttributes() {
+        return LivingEntity.createLivingAttributes()
+                .add(EntityAttributes.GENERIC_MAX_HEALTH, 1.0)
+                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.0) // 默认不移动
+                .add(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, 1.0) // 完全抵抗击退
+                .add(EntityAttributes.GENERIC_ARMOR, 0.0)
+                .add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS, 0.0);
+    }
+
 
     @Override
     public boolean hasNoGravity() {

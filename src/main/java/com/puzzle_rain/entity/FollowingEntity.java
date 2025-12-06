@@ -8,6 +8,7 @@ import net.minecraft.entity.MovementType;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.util.math.BlockPos;
@@ -40,7 +41,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     // 状态字段
     @Nullable
     private Entity target;
-    private boolean isOnGround = false;
     private int jumpTimer = 0;
     private boolean shouldJump = false;
     private int targetLostCounter = 0;
@@ -165,19 +165,18 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
     // ================= 主逻辑 =================
 
+
     @Override
     public void tick() {
         // 先调用父类的tick，这会更新位置、速度、重力等
         super.tick();
-        debugPhysics();
 
-            // 更新地面状态（应该在super.tick()之后）
-            this.isOnGround = this.isOnGround();
 
             // 确保目标是最新的
             if (this.target == null || !this.target.isAlive()) {
                 refreshTarget();
             }
+        debugPhysics();
 
             // 如果没有目标，停止移动
             if (this.target == null) {
@@ -198,11 +197,9 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                 if (currentVel.horizontalLengthSquared() > 0.01) {
                     this.setVelocity(new Vec3d(0, currentVel.y, 0));
                 }
-                return;
             }
+        processMovement(distanceToTarget);
 
-            // 执行移动逻辑
-            processMovement(distanceToTarget);
     }
 
     private void processMovement(double distanceToTarget) {
@@ -213,18 +210,18 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
         // 添加调试日志查看状态
         if (this.age % 20 == 0) {
-            System.out.println("isOnGround: " + isOnGround + ", jumpTimer: " + jumpTimer + ", velocityY: " + this.getVelocity().y);
+            System.out.println("isOnGround: " + this.isOnGround() + ", jumpTimer: " + jumpTimer + ", velocityY: " + this.getVelocity().y);
         }
 
         // 如果在地面上且跳跃计时器为0，准备跳跃
-        if (isOnGround && jumpTimer <= 0 && distanceToTarget > CLOSE_DISTANCE * 2) {
+        if (this.isOnGround() && jumpTimer <= 0) {
             shouldJump = true;
             jumpTimer = JUMP_COOLDOWN;
             System.out.println("准备跳跃！距离目标: " + distanceToTarget);
         }
 
         // 执行跳跃
-        if (shouldJump && isOnGround) {
+        if (shouldJump && isOnGround()) {
             jumpTowardTarget();
             shouldJump = false;
         }
@@ -245,7 +242,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             System.out.println("Velocity: " + this.getVelocity());
             System.out.println("isOnGround: " + this.isOnGround());
             System.out.println("hasNoGravity: " + this.hasNoGravity());
-            System.out.println("isOnGround (field): " + this.isOnGround);
+            System.out.println("isOnGround (field): " + this.isOnGround());
             System.out.println("Distance to target: " + (this.target != null ? this.getPos().distanceTo(this.target.getPos()) : "No target"));
             System.out.println("==================");
         }
@@ -253,14 +250,12 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
     private void jumpTowardTarget() {
         Vec3d direction = getHorizontalDirection();
+        System.out.println(direction);
+        System.out.println(target);
         if (direction == null) return;
 
         // 计算跳跃力量（根据距离调整）
         float jumpMultiplier = 1.0f;
-        if (target != null) {
-            double distance = this.getPos().distanceTo(target.getPos());
-            jumpMultiplier = (float) Math.min(1.5, Math.max(0.5, distance / 10.0));
-        }
 
         this.setVelocity(
                 direction.x * HORIZONTAL_SPEED * 2.0f * jumpMultiplier,
@@ -268,8 +263,13 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                 direction.z * HORIZONTAL_SPEED * 2.0f * jumpMultiplier
         );
 
-        this.setOnGround(false);
+        //this.setOnGround(false);
         //.info("Jump executed with multiplier: {}", jumpMultiplier);
+    }
+
+    @Override
+    protected double getGravity() {
+        return 0.08;
     }
 
     @Nullable
@@ -299,26 +299,10 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     }
 
     private void applyMovement() {
-        // 应用空气阻力
-        Vec3d velocity = this.getVelocity();
-        this.setVelocity(new Vec3d(
-                velocity.x * AIR_RESISTANCE,
-                velocity.y, // Y轴不受空气阻力影响
-                velocity.z * AIR_RESISTANCE
-        ));
+        double e = this.getVelocity().y;
+            e -= this.getFinalGravity();
 
-        // 限制最大速度
-        velocity = this.getVelocity();
-        double horizontalSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-
-        if (horizontalSpeed > MAX_SPEED) {
-            double scale = MAX_SPEED / horizontalSpeed;
-            this.setVelocity(new Vec3d(
-                    velocity.x * scale,
-                    velocity.y,
-                    velocity.z * scale
-            ));
-        }
+        this.setVelocity(this.getVelocity().x, e * (double)0.98F, this.getVelocity().z);
     }
 
     // ================= Targetable接口实现 =================

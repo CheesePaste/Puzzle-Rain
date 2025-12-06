@@ -63,7 +63,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         //protected与其他实体碰撞
         this.collideWithEntities = true;
         //protected允许自主移动
-        this.allowVoluntaryMovement = true;
+        this.allowVoluntaryMovement = false;
         //protected处理活塞调整
         this.adjustForPiston = false;
         //protected处理潜行调整

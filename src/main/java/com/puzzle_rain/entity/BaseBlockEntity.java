@@ -124,6 +124,7 @@ public abstract class BaseBlockEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
+
         this.age++;
 
         // 更新轨迹

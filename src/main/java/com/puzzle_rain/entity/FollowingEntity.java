@@ -188,8 +188,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                 return;
             }
 
-            // 计算到目标的距离
-            double distanceToTarget = this.getPos().distanceTo(this.target.getPos());
 
             // 如果距离足够近，停止水平移动
             if (isClose()) {
@@ -198,11 +196,11 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                     this.setVelocity(new Vec3d(0, currentVel.y, 0));
                 }
             }
-        processMovement(distanceToTarget);
+        processMovement();
 
     }
 
-    private void processMovement(double distanceToTarget) {
+    private void processMovement() {
         // 更新跳跃计时器
         if (jumpTimer > 0) {
             jumpTimer--;
@@ -217,7 +215,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         if (this.isOnGround() && jumpTimer <= 0) {
             shouldJump = true;
             jumpTimer = JUMP_COOLDOWN;
-            System.out.println("准备跳跃！距离目标: " + distanceToTarget);
         }
 
         // 执行跳跃

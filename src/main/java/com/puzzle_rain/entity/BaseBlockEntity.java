@@ -90,7 +90,6 @@ public abstract class BaseBlockEntity extends Entity {
 
     public void updateTrail() {
         Vec3d currentPos = this.getPos();
-
         trailPositions.add(0, currentPos);
 
         while (trailPositions.size() > MAX_TRAIL_LENGTH) {
@@ -187,124 +186,129 @@ public abstract class BaseBlockEntity extends Entity {
 
     // ================= 碰撞相关方法 =================
 
-    // 控制是否启用碰撞检测
-    protected boolean enableCollisionDetection = true;
-    //protected可攻击
+    // 控制变量定义
+    protected boolean enableCollision = true;
     protected boolean attackable = false;
-    //protected防火
     protected boolean fireImmune = true;
-    //protected处理推动
-    protected boolean handlePushing = false;
-    //protected处理方块碰撞
-    protected boolean handleBlockCollision = false;
-    //protected与其他实体碰撞
-    protected boolean collideWithEntities = false;
-    //protected允许自主移动
-    protected boolean allowVoluntaryMovement = true;
-    //protected处理活塞调整
-    protected boolean adjustForPiston = false;
-    //protected处理潜行调整
-    protected boolean adjustForSneaking = false;
-    //protected可被击中
+    protected boolean aliveCheckFromRemoved = true;
+    protected boolean pushOutOfBlocksEnabled = false;
+    protected boolean onBlockCollisionEnabled = false;
+    protected boolean collidesWithOtherEntities = false;
+    protected boolean moveVoluntarily = true;
+    protected boolean collidesWithBlockStates = false;
+    protected boolean checkBlockCollisionEnabled = false;
+    protected boolean adjustForPistonEnabled = false;
+    protected boolean adjustForSneakingEnabled = false;
     protected boolean hittable = true;
-    //protected无重力
+    protected boolean pushAwayEnabled = false;
     protected boolean noGravity = false;
-    //protected可碰撞
     protected boolean collidable = true;
-    //protected可推动
     protected boolean pushable = true;
 
     @Override
     public boolean doesNotCollide(double offsetX, double offsetY, double offsetZ) {
-        return !enableCollisionDetection || super.doesNotCollide(offsetX, offsetY, offsetZ);
+        return !enableCollision;
     }
 
     @Override
     public boolean isAttackable() {
-        return attackable && super.isAttackable();
+        return attackable;
     }
 
     @Override
     public boolean isFireImmune() {
-        return fireImmune || super.isFireImmune();
+        return fireImmune;
     }
 
     @Override
     public boolean isAlive() {
-        return !this.isRemoved();
+        if (aliveCheckFromRemoved) {
+            return !this.isRemoved();
+        }
+        return super.isAlive(); // 或者返回自定义的逻辑
     }
 
     @Override
     protected void pushOutOfBlocks(double x, double y, double z) {
-        if (handlePushing) {
+        if (pushOutOfBlocksEnabled) {
             super.pushOutOfBlocks(x, y, z);
         }
+        // 否则为空实现
     }
 
     @Override
     protected void onBlockCollision(BlockState state) {
-        if (handleBlockCollision) {
+        if (onBlockCollisionEnabled) {
             super.onBlockCollision(state);
         }
+        // 否则为空实现
     }
 
     @Override
     public boolean collidesWith(Entity other) {
-        return collideWithEntities && super.collidesWith(other);
+        return collidesWithOtherEntities;
     }
 
     @Override
     public boolean canMoveVoluntarily() {
-        return allowVoluntaryMovement && super.canMoveVoluntarily();
+        return moveVoluntarily;
     }
 
     @Override
     public boolean collidesWithStateAtPos(BlockPos pos, BlockState state) {
-        return false;
+        return collidesWithBlockStates;
     }
 
     @Override
     protected void checkBlockCollision() {
-        if (handleBlockCollision) {
+        if (checkBlockCollisionEnabled) {
             super.checkBlockCollision();
         }
+        // 否则为空实现
     }
 
     @Override
     protected Vec3d adjustMovementForPiston(Vec3d movement) {
-        return adjustForPiston ? super.adjustMovementForPiston(movement) : movement;
+        if (adjustForPistonEnabled) {
+            return super.adjustMovementForPiston(movement);
+        }
+        return movement;
     }
 
     @Override
     protected Vec3d adjustMovementForSneaking(Vec3d movement, MovementType type) {
-        return adjustForSneaking ? super.adjustMovementForSneaking(movement, type) : movement;
+        if (adjustForSneakingEnabled) {
+            return super.adjustMovementForSneaking(movement, type);
+        }
+        return movement;
     }
 
     @Override
     public boolean canHit() {
-        return hittable && super.canHit();
+        return hittable;
     }
 
     @Override
     public void pushAwayFrom(Entity entity) {
-        if (handlePushing) {
+        if (pushAwayEnabled) {
             super.pushAwayFrom(entity);
         }
+        // 否则为空实现
     }
 
     @Override
     public boolean hasNoGravity() {
-        return noGravity || super.hasNoGravity();
+        return noGravity;
     }
 
     @Override
     public boolean isCollidable() {
-        return collidable && super.isCollidable();
+        return collidable;
     }
 
     @Override
     public boolean isPushable() {
-        return pushable && super.isPushable();
+        return pushable;
     }
 
 }

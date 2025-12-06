@@ -46,49 +46,34 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     private int targetLostCounter = 0;
     private static final int MAX_TARGET_LOST_TICKS = 200; // 10秒后放弃跟随
 
-
-
-
-
-    void Collid(){
-        this.enableCollisionDetection = true;
-        //protected可攻击
-        this.attackable = false;
-        //protected防火
-        this.fireImmune = true;
-        //protected处理推动
-        this.handlePushing = true;
-        //protected处理方块碰撞
-        this.handleBlockCollision = true;
-        //protected与其他实体碰撞
-        this.collideWithEntities = true;
-        //protected允许自主移动
-        this.allowVoluntaryMovement = false;
-        //protected处理活塞调整
-        this.adjustForPiston = false;
-        //protected处理潜行调整
-        this.adjustForSneaking = false;
-        //protected可被击中
-        this.hittable = true;
-        //protected无重力
-        this.noGravity = false;
-        //protected可碰撞
-        this.collidable = true;
-        //protected可推动
-        this.pushable = true;
-    }
-
-
-
-
     // ================= 构造方法 =================
+
+    void Colli(){
+        enableCollision = true;
+        attackable = false;
+        fireImmune = true;
+        aliveCheckFromRemoved = true;
+        pushOutOfBlocksEnabled = true;
+        onBlockCollisionEnabled = true;
+        collidesWithOtherEntities = true;
+        moveVoluntarily = true;
+        collidesWithBlockStates = true;
+        checkBlockCollisionEnabled = true;
+        adjustForPistonEnabled = true;
+        adjustForSneakingEnabled = true;
+        hittable = true;
+        pushAwayEnabled = true;
+        noGravity = false;
+        collidable = true;
+        pushable = true;
+    }
 
     public FollowingEntity(EntityType<?> type, World world, @Nullable Entity target,
                            @NotNull BlockPos pos, @NotNull BlockState state) {
         super(type, world, pos, state);
         this.target = target;
+        Colli();
         this.MAX_TRAIL_LENGTH=200;
-        Collid();
 
 
 
@@ -98,8 +83,8 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     public FollowingEntity(EntityType<FollowingEntity> type, World world) {
         super(type, world);
         this.setNoGravity(false);
+        Colli();
         this.MAX_TRAIL_LENGTH=200;
-        Collid();
         //.info("FollowingEntity created with default constructor");
     }
 
@@ -240,10 +225,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
                     return;
             }
         processMovement();
-
-            // 执行移动逻辑
-            processMovement();
-        //}
 
     }
 

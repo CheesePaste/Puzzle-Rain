@@ -14,8 +14,17 @@ import net.minecraft.util.Identifier;
 
 public class PuzzleRainClient implements ClientModInitializer {
     public static ShaderProgram GRAVITY_WARP;
+    public static ShaderProgram trailGlowShader;
     @Override
     public void onInitializeClient() {
+        CoreShaderRegistrationCallback.EVENT.register(context -> {
+
+            context.register(
+                    Identifier.of(PuzzleRain.MOD_ID, "trail_glow"), // JSON 文件名 (不带后缀)
+                    VertexFormats.POSITION_TEXTURE_COLOR,        // 顶点格式，必须与 JSON 里的 attributes 对应
+                    program -> trailGlowShader = program         // 回调：加载成功后赋值给静态变量
+            );
+        });
         GravitationalDistortionShader.initialize();
         // 注册飞行方块实体的渲染器
         CoreShaderRegistrationCallback.EVENT.register(context -> {
@@ -31,5 +40,9 @@ public class PuzzleRainClient implements ClientModInitializer {
                 BaseBlockEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.FollowingEntity,
                 BaseBlockEntityRenderer::new);
+    }
+
+    public static ShaderProgram getTrailGlowShader() {
+        return trailGlowShader;
     }
 }

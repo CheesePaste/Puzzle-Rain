@@ -28,7 +28,7 @@ import java.util.UUID;
 public abstract class BaseBlockEntity extends Entity {
 
     // 常量
-    protected static final int MAX_TRAIL_LENGTH = 25;
+    protected int MAX_TRAIL_LENGTH = 25;
     public static final TrackedData<Integer> BLOCK_STATE_ID =
             DataTracker.registerData(BaseBlockEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
@@ -90,6 +90,7 @@ public abstract class BaseBlockEntity extends Entity {
 
     public void updateTrail() {
         Vec3d currentPos = this.getPos();
+
         trailPositions.add(0, currentPos);
 
         while (trailPositions.size() > MAX_TRAIL_LENGTH) {
@@ -186,19 +187,46 @@ public abstract class BaseBlockEntity extends Entity {
 
     // ================= 碰撞相关方法 =================
 
+    // 控制是否启用碰撞检测
+    protected boolean enableCollisionDetection = true;
+    //protected可攻击
+    protected boolean attackable = false;
+    //protected防火
+    protected boolean fireImmune = true;
+    //protected处理推动
+    protected boolean handlePushing = false;
+    //protected处理方块碰撞
+    protected boolean handleBlockCollision = false;
+    //protected与其他实体碰撞
+    protected boolean collideWithEntities = false;
+    //protected允许自主移动
+    protected boolean allowVoluntaryMovement = true;
+    //protected处理活塞调整
+    protected boolean adjustForPiston = false;
+    //protected处理潜行调整
+    protected boolean adjustForSneaking = false;
+    //protected可被击中
+    protected boolean hittable = true;
+    //protected无重力
+    protected boolean noGravity = false;
+    //protected可碰撞
+    protected boolean collidable = true;
+    //protected可推动
+    protected boolean pushable = true;
+
     @Override
     public boolean doesNotCollide(double offsetX, double offsetY, double offsetZ) {
-        return true;
+        return !enableCollisionDetection || super.doesNotCollide(offsetX, offsetY, offsetZ);
     }
 
     @Override
     public boolean isAttackable() {
-        return false;
+        return attackable && super.isAttackable();
     }
 
     @Override
     public boolean isFireImmune() {
-        return true;
+        return fireImmune || super.isFireImmune();
     }
 
     @Override
@@ -208,22 +236,26 @@ public abstract class BaseBlockEntity extends Entity {
 
     @Override
     protected void pushOutOfBlocks(double x, double y, double z) {
-        // 空实现
+        if (handlePushing) {
+            super.pushOutOfBlocks(x, y, z);
+        }
     }
 
     @Override
     protected void onBlockCollision(BlockState state) {
-        // 空实现
+        if (handleBlockCollision) {
+            super.onBlockCollision(state);
+        }
     }
 
     @Override
     public boolean collidesWith(Entity other) {
-        return false;
+        return collideWithEntities && super.collidesWith(other);
     }
 
     @Override
     public boolean canMoveVoluntarily() {
-        return true;
+        return allowVoluntaryMovement && super.canMoveVoluntarily();
     }
 
     @Override
@@ -233,42 +265,46 @@ public abstract class BaseBlockEntity extends Entity {
 
     @Override
     protected void checkBlockCollision() {
-        // 空实现
+        if (handleBlockCollision) {
+            super.checkBlockCollision();
+        }
     }
 
     @Override
     protected Vec3d adjustMovementForPiston(Vec3d movement) {
-        return movement;
+        return adjustForPiston ? super.adjustMovementForPiston(movement) : movement;
     }
 
     @Override
     protected Vec3d adjustMovementForSneaking(Vec3d movement, MovementType type) {
-        return movement;
+        return adjustForSneaking ? super.adjustMovementForSneaking(movement, type) : movement;
     }
 
     @Override
     public boolean canHit() {
-        return true;
+        return hittable && super.canHit();
     }
 
     @Override
     public void pushAwayFrom(Entity entity) {
-        // 空实现
+        if (handlePushing) {
+            super.pushAwayFrom(entity);
+        }
     }
 
     @Override
     public boolean hasNoGravity() {
-        return false;
+        return noGravity || super.hasNoGravity();
     }
 
     @Override
     public boolean isCollidable() {
-        return true;
+        return collidable && super.isCollidable();
     }
 
     @Override
     public boolean isPushable() {
-        return true;
+        return pushable && super.isPushable();
     }
 
 }

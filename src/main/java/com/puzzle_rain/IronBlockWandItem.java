@@ -27,6 +27,7 @@ public class IronBlockWandItem extends Item {
         PlayerEntity player = context.getPlayer();
         Hand hand = context.getHand();
 
+
         if (!world.isClient) {
             // 服务端逻辑
             onRightClickBlockServer(world, player, hand, context.getBlockPos(), context.getSide());
@@ -35,7 +36,7 @@ public class IronBlockWandItem extends Item {
 
             onRightClickBlockClient(world, player, hand, context.getBlockPos(), context.getSide());
         }
-
+        world.breakBlock(context.getBlockPos(),false);
         return ActionResult.SUCCESS;
     }
 

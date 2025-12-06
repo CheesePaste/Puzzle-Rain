@@ -6,20 +6,20 @@ import com.puzzle_rain.entity.BaseBlockEntity;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.*;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 
 import java.util.List;
 
@@ -35,6 +35,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
         if (blockState.getRenderType() != BlockRenderType.MODEL) {
             return;
         }
+        renderEmojiOnFace(entity,matrices,vertexConsumers,tickDelta);
 
         matrices.push();
 
@@ -52,9 +53,15 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
         if(PuzzleRain.config.useEnergyField) renderEnergyField(entity,matrices,vertexConsumers,tickDelta,light);
         //matrices.translate(-0.5, 0.0, -0.5);
         blockRenderManager.renderBlockAsEntity(blockState, matrices, vertexConsumers, light, OverlayTexture.DEFAULT_UV);
+
+
+
+
+
         matrices.pop();
         matrices.pop();
         matrices.pop();
+
 
         // 3. 渲染能量场 (解除注释)
         // 传入 light 变量
@@ -64,6 +71,91 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
 
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
     }
+
+
+    private void renderEmojiOnFace(BaseBlockEntity entity, MatrixStack matrices,
+                                   VertexConsumerProvider vertexConsumers, float tickDelta) {
+        // --- 开始渲染颜文字 ---
+
+        // 定义你要渲染的颜文字
+        String kaomoji = "(❁´◡`❁))";
+        Text text = Text.of(kaomoji);
+
+        // 2. 压入矩阵栈，隔离变换，防止影响后续渲染
+        matrices.push();
+
+        // 3. 位移 (Translation)
+        // 将原点移动到实体头顶上方。
+        // entity.getHeight() 获取实体高度，+0.5f 是额外的悬浮距离
+        matrices.translate(0.0D, entity.getHeight() + 0.5F, 0.0D);
+
+        // 4. 旋转 (Rotation / Billboarding)
+        // 关键步骤：让文字始终面向相机（玩家）。
+        // this.dispatcher.getRotation() 获取的是当前相机的旋转四元数。
+        //matrices.multiply(this.dispatcher.getRotation());
+
+        // 5. 缩放 (Scaling)
+        // Minecraft 的字体默认非常大，通常需要缩小到 0.025 倍左右。
+        // Y 轴取负值是因为 Minecraft 的文字渲染坐标系 Y 轴是向下的，而世界坐标系 Y 轴向上。
+        float scale = 0.025F;
+        matrices.scale(-scale, -scale, scale);
+
+        // 6. 计算居中位置
+        float textWidth = this.getTextRenderer().getWidth(text);
+        float xOffset = -textWidth / 2f; // 向左移动一半宽度以居中
+
+        // 7. 绘制文字
+        Matrix4f positionMatrix = matrices.peek().getPositionMatrix();
+        positionMatrix.translate(0.5f,0,0);
+
+        // 使用 TextRenderer 绘制
+        this.getTextRenderer().draw(
+                text,
+                xOffset,
+                0,
+                0xFFFFFF, // 颜色 (白色)
+                true,    // 是否有阴影 (true 会更有立体感，但颜文字通常不需要)
+                positionMatrix,
+                vertexConsumers,
+                // 渲染模式：NORMAL (普通), SEE_THROUGH (透视/穿墙可见), POLYGON_OFFSET (防止闪烁)
+                // 如果你想让颜文字像名字一样即使隔着墙也能看见，可以使用 SEE_THROUGH
+                TextRenderer.TextLayerType.NORMAL,
+                0,        // 背景颜色 (0 为透明)
+                0xF000F0     // 光照等级 (通常传参数里的 light，或者 0xF000F0 使其全亮)
+        );
+
+        // 8. 弹出矩阵栈，恢复状态
+        matrices.pop();
+
+//        matrices.push();
+//
+//        matrices.translate(0.5, 2.0, 0.5); // 保证完全在方块外看得到
+//
+//
+//
+//        float scale = 0.025f;
+//        matrices.scale(-scale, -scale, scale);
+//
+//        Text text = Text.literal("(┬┬﹏┬┬))");
+//        float width = MinecraftClient.getInstance().textRenderer.getWidth(text);
+//
+//
+//        MinecraftClient.getInstance().textRenderer.draw(
+//                text,
+//                -width / 2f,
+//                0,
+//                0xFFFFFF,
+//                false,
+//                matrices.peek().getPositionMatrix(),
+//                vertexConsumers,
+//                TextRenderer.TextLayerType.NORMAL,
+//                0,
+//                0xF000F0
+//        );
+//
+//        matrices.pop();
+    }
+
 
     // 渲染球形能量场
     private void renderEnergyField(BaseBlockEntity entity, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, int light) {

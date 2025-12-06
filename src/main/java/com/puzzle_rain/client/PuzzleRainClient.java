@@ -1,6 +1,7 @@
 package com.puzzle_rain.client;
 
 import com.puzzle_rain.GravitationalDistortionShader;
+import com.puzzle_rain.ModComponents;
 import com.puzzle_rain.PuzzleRain;
 import com.puzzle_rain.entity.BaseBlockEntityRenderer;
 import com.puzzle_rain.entity.ModEntities;
@@ -17,6 +18,7 @@ public class PuzzleRainClient implements ClientModInitializer {
     public static ShaderProgram trailGlowShader;
     @Override
     public void onInitializeClient() {
+
         CoreShaderRegistrationCallback.EVENT.register(context -> {
 
             context.register(

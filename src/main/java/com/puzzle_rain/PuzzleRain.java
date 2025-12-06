@@ -92,13 +92,13 @@ public class PuzzleRain implements ModInitializer {
 			while (KeyBindings.addEmitterPointKey.wasPressed()){
 				addPlayerPositionToEmitterPoints(client.player);
 			}
-			while(KeyBindings.switchWandModeKey.wasPressed()){
-
-
-				if(client.player.getMainHandStack().getItem() instanceof IronBlockWandItem){
-					((IronBlockWandItem) client.player.getMainHandStack().getItem()).switchToNextModeClient(client.player, client.player.getActiveHand());
-				}
-			}
+//			while(KeyBindings.switchWandModeKey.wasPressed()){
+//
+//
+//				if(client.player.getMainHandStack().getItem() instanceof IronBlockWandItem){
+//					((IronBlockWandItem) client.player.getMainHandStack().getItem()).switchToNextModeClient(client.player, client.player.getActiveHand());
+//				}
+//			}
 
 
 
@@ -125,7 +125,7 @@ public class PuzzleRain implements ModInitializer {
 
 		FabricDefaultAttributeRegistry.register(ModEntities.FollowingEntity, FollowingEntity.createFollowingAttributes());
 		FabricDefaultAttributeRegistry.register(ModEntities.FLYING_BLOCK_ENTITY, BaseBlockEntity.createBaseBlockAttributes());
-
+		ModComponents.register();
 
 
 	}

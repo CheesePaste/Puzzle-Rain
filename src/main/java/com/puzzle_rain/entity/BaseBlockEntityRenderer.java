@@ -1,5 +1,6 @@
 package com.puzzle_rain.entity;
 
+import com.puzzle_rain.MyRenderLayers;
 import com.puzzle_rain.PuzzleRain;
 import com.puzzle_rain.entity.BaseBlockEntity;
 import net.minecraft.block.BlockRenderType;
@@ -42,7 +43,7 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
 
         // 应用缩放（可选）
         //matrices.translate(-0.5, 0.0, -0.5);
-        renderTrail(entity,matrices,vertexConsumers,tickDelta);
+        renderTrail3(entity,matrices,vertexConsumers,tickDelta);
         matrices.push();
         if(PuzzleRain.config.useBlockTrail) renderBlockTrail(entity,blockState,matrices,vertexConsumers,tickDelta,light);
         //renderEnergyField(entity,matrices,vertexConsumers,tickDelta);
@@ -289,6 +290,71 @@ public class BaseBlockEntityRenderer extends EntityRenderer<BaseBlockEntity> {
                 MathHelper.lerp(t, start.y, end.y),
                 MathHelper.lerp(t, start.z, end.z)
         );
+    }
+
+    private void renderTrail3(BaseBlockEntity entity, MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
+        List<Vec3d> trail = entity.getTrailPositions();
+        if (trail.size() < 2) return;
+
+        // 使用我们自定义的 Layer
+        VertexConsumer buffer = vertexConsumers.getBuffer(MyRenderLayers.TRAIL_GLOW);
+
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        Vec3d cameraPos = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
+
+        // 拖尾配置
+        float width = 0.4f; // 稍微宽一点，因为边缘会淡出
+
+        // 颜色 (RGBA) - 比如青色荧光
+        float r = 0.2f;
+        float g = 0.8f;
+        float b = 1.0f;
+        float maxAlpha = 1.0f; // Shader 会处理边缘透明，这里设为 1 即可
+
+        // 插值位置
+        double entityX = MathHelper.lerp(tickDelta, entity.prevX, entity.getX());
+        double entityY = MathHelper.lerp(tickDelta, entity.prevY, entity.getY());
+        double entityZ = MathHelper.lerp(tickDelta, entity.prevZ, entity.getZ());
+
+        for (int i = 0; i < trail.size() - 1; i++) {
+            Vec3d startWorld = trail.get(i);
+            Vec3d endWorld = trail.get(i + 1);
+            Vec3d dir = endWorld.subtract(startWorld);
+            if (dir.lengthSquared() < 0.0001) continue;
+
+            // Billboarding 计算
+            Vec3d toCamera = cameraPos.subtract(startWorld);
+            Vec3d right = dir.crossProduct(toCamera).normalize().multiply(width / 2.0);
+
+            // 顶点计算
+            Vec3d v1 = startWorld.subtract(right);
+            Vec3d v2 = startWorld.add(right);
+            Vec3d v3 = endWorld.add(right);
+            Vec3d v4 = endWorld.subtract(right);
+
+            // 相对坐标
+            float x1 = (float) (v1.x - entityX); float y1 = (float) (v1.y - entityY); float z1 = (float) (v1.z - entityZ);
+            float x2 = (float) (v2.x - entityX); float y2 = (float) (v2.y - entityY); float z2 = (float) (v2.z - entityZ);
+            float x3 = (float) (v3.x - entityX); float y3 = (float) (v3.y - entityY); float z3 = (float) (v3.z - entityZ);
+            float x4 = (float) (v4.x - entityX); float y4 = (float) (v4.y - entityY); float z4 = (float) (v4.z - entityZ);
+
+            // 沿路径长度的纹理坐标 U (可选，如果 Shader 不需要沿长度变化，可以忽略)
+            // 这里重点是 V 坐标：边缘是 0 和 1，Shader 里会处理成透明
+
+            // 头部渐隐 Alpha
+            float alpha = maxAlpha * ((float) i / trail.size());
+
+            // 绘制顶点
+            // 关键点：
+            // 1. .texture(u, v) -> v 必须是 0 和 1，用来在 shader 里计算距离中心的距离
+            // 2. .color() -> 传入基础颜色
+            // 3. 不再需要 .light()，因为 RenderLayer 设置了不写入深度且 Shader 忽略光照
+
+            buffer.vertex(matrix, x1, y1, z1).color(r, g, b, alpha).texture(0f, 0f); // V=0 边缘
+            buffer.vertex(matrix, x2, y2, z2).color(r, g, b, alpha).texture(0f, 1f); // V=1 边缘
+            buffer.vertex(matrix, x3, y3, z3).color(r, g, b, alpha).texture(1f, 1f); // V=1 边缘
+            buffer.vertex(matrix, x4, y4, z4).color(r, g, b, alpha).texture(1f, 0f); // V=0 边缘
+        }
     }
 
     // 渲染单个轨迹方块

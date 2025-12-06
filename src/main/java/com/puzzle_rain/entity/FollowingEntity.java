@@ -46,18 +46,60 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     private int targetLostCounter = 0;
     private static final int MAX_TARGET_LOST_TICKS = 200; // 10秒后放弃跟随
 
+
+
+
+
+    void Collid(){
+        this.enableCollisionDetection = true;
+        //protected可攻击
+        this.attackable = false;
+        //protected防火
+        this.fireImmune = true;
+        //protected处理推动
+        this.handlePushing = true;
+        //protected处理方块碰撞
+        this.handleBlockCollision = true;
+        //protected与其他实体碰撞
+        this.collideWithEntities = true;
+        //protected允许自主移动
+        this.allowVoluntaryMovement = true;
+        //protected处理活塞调整
+        this.adjustForPiston = false;
+        //protected处理潜行调整
+        this.adjustForSneaking = false;
+        //protected可被击中
+        this.hittable = true;
+        //protected无重力
+        this.noGravity = false;
+        //protected可碰撞
+        this.collidable = true;
+        //protected可推动
+        this.pushable = true;
+    }
+
+
+
+
     // ================= 构造方法 =================
 
     public FollowingEntity(EntityType<?> type, World world, @Nullable Entity target,
                            @NotNull BlockPos pos, @NotNull BlockState state) {
         super(type, world, pos, state);
         this.target = target;
+        this.MAX_TRAIL_LENGTH=200;
+        Collid();
+
+
+
 
     }
 
     public FollowingEntity(EntityType<FollowingEntity> type, World world) {
         super(type, world);
         this.setNoGravity(false);
+        this.MAX_TRAIL_LENGTH=200;
+        Collid();
         //.info("FollowingEntity created with default constructor");
     }
 
@@ -198,6 +240,10 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             }
         processMovement();
 
+            // 执行移动逻辑
+            processMovement();
+        //}
+
     }
 
     private void processMovement() {
@@ -256,7 +302,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
         this.setVelocity(
                 direction.x * HORIZONTAL_SPEED * 2.0f * jumpMultiplier,
-                JUMP_STRENGTH * jumpMultiplier,
+                JUMP_STRENGTH * jumpMultiplier+this.getVelocity().y,
                 direction.z * HORIZONTAL_SPEED * 2.0f * jumpMultiplier
         );
 
@@ -308,8 +354,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     @Nullable
     public Vec3d getDir() {
         if (target != null) {
-            Vec3d dir = target.getPos().subtract(this.getPos()).normalize();
-            return dir;
+            return target.getPos().subtract(this.getPos()).normalize();
         }
         return null;
     }
@@ -317,11 +362,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     @Override
     public boolean isClose() {
         if (target != null) {
-            boolean close = this.getPos().distanceTo(target.getPos()) <= CLOSE_DISTANCE;
-            if (close) {
-                //.info("Is close to target: {}", close);
-            }
-            return close;
+            return this.getPos().distanceTo(target.getPos()) <= CLOSE_DISTANCE;
         }
         return false;
     }

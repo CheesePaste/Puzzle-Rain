@@ -29,7 +29,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     // 配置参数
     private static final float CLOSE_DISTANCE = 2.0f;
     private static final float HORIZONTAL_SPEED = 0.15f;
-    private static final float JUMP_STRENGTH = 0.4f;
+    private static final float JUMP_STRENGTH = 0.5f;
     private static final int JUMP_COOLDOWN = 20;
     private static final float MAX_SPEED = 0.5f;
     private static final float AIR_RESISTANCE = 0.98f;
@@ -180,11 +180,11 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
             // 如果没有目标，停止移动
             if (this.target == null) {
-                if (this.getVelocity().horizontalLengthSquared() > 0.01) {
                     // 只停止水平移动，不影响重力
                     Vec3d currentVel = this.getVelocity();
                     this.setVelocity(new Vec3d(0, currentVel.y, 0));
-                }
+                    applyMovement();
+                this.move(MovementType.SELF, this.getVelocity());
                 return;
             }
 
@@ -192,9 +192,10 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             // 如果距离足够近，停止水平移动
             if (isClose()) {
                 Vec3d currentVel = this.getVelocity();
-                if (currentVel.horizontalLengthSquared() > 0.01) {
                     this.setVelocity(new Vec3d(0, currentVel.y, 0));
-                }
+                    applyMovement();
+                this.move(MovementType.SELF, this.getVelocity());
+                    return;
             }
         processMovement();
 
@@ -308,8 +309,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     @Nullable
     public Vec3d getDir() {
         if (target != null) {
-            Vec3d dir = target.getPos().subtract(this.getPos()).normalize();
-            return dir;
+            return target.getPos().subtract(this.getPos()).normalize();
         }
         return null;
     }
@@ -317,11 +317,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     @Override
     public boolean isClose() {
         if (target != null) {
-            boolean close = this.getPos().distanceTo(target.getPos()) <= CLOSE_DISTANCE;
-            if (close) {
-                //.info("Is close to target: {}", close);
-            }
-            return close;
+            return this.getPos().distanceTo(target.getPos()) <= CLOSE_DISTANCE;
         }
         return false;
     }

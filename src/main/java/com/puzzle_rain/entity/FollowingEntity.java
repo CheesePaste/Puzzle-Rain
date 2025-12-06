@@ -199,31 +199,31 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         super.tick();
 
 
-            // 确保目标是最新的
-            if (this.target == null || !this.target.isAlive()) {
-                refreshTarget();
-            }
+        // 确保目标是最新的
+        if (this.target == null || !this.target.isAlive()) {
+            refreshTarget();
+        }
         debugPhysics();
 
-            // 如果没有目标，停止移动
-            if (this.target == null) {
-                    // 只停止水平移动，不影响重力
-                    Vec3d currentVel = this.getVelocity();
-                    this.setVelocity(new Vec3d(0, currentVel.y, 0));
-                    applyMovement();
-                this.move(MovementType.SELF, this.getVelocity());
-                return;
-            }
+        // 如果没有目标，停止移动
+        if (this.target == null) {
+            // 只停止水平移动，不影响重力
+            Vec3d currentVel = this.getVelocity();
+            this.setVelocity(new Vec3d(0, currentVel.y, 0));
+            applyMovement();
+            this.move(MovementType.SELF, this.getVelocity());
+            return;
+        }
 
 
-            // 如果距离足够近，停止水平移动
-            if (isClose()) {
-                Vec3d currentVel = this.getVelocity();
-                    this.setVelocity(new Vec3d(0, currentVel.y, 0));
-                    applyMovement();
-                this.move(MovementType.SELF, this.getVelocity());
-                    return;
-            }
+        // 如果距离足够近，停止水平移动
+        if (isClose()) {
+            Vec3d currentVel = this.getVelocity();
+            this.setVelocity(new Vec3d(0, currentVel.y, 0));
+            applyMovement();
+            this.move(MovementType.SELF, this.getVelocity());
+            return;
+        }
         processMovement();
 
     }

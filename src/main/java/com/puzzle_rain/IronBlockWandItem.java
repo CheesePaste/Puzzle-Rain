@@ -4,18 +4,12 @@ import com.puzzle_rain.entity.FollowingEntity;
 import com.puzzle_rain.entity.ModEntities;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.component.type.AttributeModifiersComponent;
-import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.attribute.EntityAttribute;
-import net.minecraft.entity.attribute.EntityAttributeModifier;
-import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
@@ -23,23 +17,24 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import java.util.List;
-import java.util.function.BiConsumer;
+import java.util.UUID;
 
 /**
  * 铁块魔杖物品类
- * 提供三种模式：跟随模式、静止模式、放置模式
+ * 提供四种模式：跟随模式、静止模式、放置模式、操纵模式
  */
 public class IronBlockWandItem extends Item {
 
-
-    // 定义三种模式
+    // 定义四种模式
     public enum WandMode {
         FOLLOW(0, "跟随模式"),
         STATIC(1, "静止模式"),
-        PLACE(2, "放置模式");
+        PLACE(2, "放置模式"),
+        CONTROL(3, "操纵模式");
 
         private final int index;
         private final String displayName;
@@ -69,14 +64,11 @@ public class IronBlockWandItem extends Item {
         }
     }
 
-    // 组件管理
-    private static final String MODE_KEY = "wand_mode";
-
     public IronBlockWandItem(Settings settings) {
         super(settings
                 .maxCount(1) // 魔杖通常只能拿一个
                 // 添加默认组件：初始模式为FOLLOW
-                .component(ModComponents.WAND_MODE, new com.puzzle_rain.WandModeComponent(0))
+                .component(ModComponents.WAND_MODE, new WandModeComponent(0))
         );
     }
 
@@ -112,7 +104,6 @@ public class IronBlockWandItem extends Item {
 
     /**
      * 切换到下一个模式 (服务端安全方法)
-     * 这个方法应该在服务器端调用，以确保数据同步
      */
     public static void switchToNextMode(PlayerEntity player, Hand hand) {
         if (player == null) return;
@@ -122,7 +113,7 @@ public class IronBlockWandItem extends Item {
         WandMode currentMode = getMode(stack);
         WandMode nextMode = currentMode.next();
 
-        // 设置新模式，ItemStack.set() 会创建副本，所以需要重新设置回玩家手中
+        // 设置新模式
         ItemStack newStack = setMode(stack, nextMode);
         player.setStackInHand(hand, newStack);
 
@@ -134,7 +125,6 @@ public class IronBlockWandItem extends Item {
             );
         }
     }
-
 
     // ==================== 右键方块交互 ====================
     @Override
@@ -173,8 +163,10 @@ public class IronBlockWandItem extends Item {
 
             case PLACE:
                 // 模式3：直接放置方块
-                // 注意：对于放置模式，右键方块是放置而不是转化，所以这里不破坏原方块
-                // 如果需要其他功能，可以在这里扩展
+                return ActionResult.PASS;
+
+            case CONTROL:
+                // 模式4：操纵模式 - 不处理方块右键
                 return ActionResult.PASS;
         }
 
@@ -249,10 +241,46 @@ public class IronBlockWandItem extends Item {
         if (player != null) {
             player.swingHand(hand, true);
         }
+    }
 
-        // 可以在这里添加粒子效果或音效
-        // 例如：播放使用音效
-        // player.playSound(SoundEvents.ITEM_FLINTANDSTEEL_USE, 1.0F, 1.0F);
+    // ==================== 右键空气交互 ====================
+    @Override
+    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
+        ItemStack stack = user.getStackInHand(hand);
+
+        if (world.isClient()) {
+            return TypedActionResult.success(stack);
+        }
+
+        // 获取当前模式
+        WandMode mode = getMode(stack);
+
+        if (mode == WandMode.CONTROL) {
+            // 在操纵模式下，右键空气发射当前控制的实体
+            handleControlModeLaunch(world, user, hand, stack);
+        }
+
+        return TypedActionResult.success(stack);
+    }
+
+    /**
+     * 处理操纵模式的发射
+     */
+    private void handleControlModeLaunch(World world, PlayerEntity player, Hand hand, ItemStack stack) {
+        // 查找玩家当前是否正在操纵实体
+        FollowingEntity controlledEntity = findControlledEntity(world, player);
+
+        if (controlledEntity != null && controlledEntity.isControlled()) {
+            // 获取玩家视角方向
+            Vec3d lookDirection = player.getRotationVec(1.0F);
+
+            // 发射实体
+            controlledEntity.launchEntity(lookDirection);
+            player.swingHand(hand, true);
+            player.sendMessage(Text.literal("实体已发射").formatted(Formatting.GREEN), true);
+        } else {
+            player.sendMessage(Text.literal("没有选中的实体").formatted(Formatting.RED), true);
+        }
     }
 
     // ==================== 右键实体交互 ====================
@@ -272,12 +300,16 @@ public class IronBlockWandItem extends Item {
      */
     protected ActionResult onRightClickEntityServer(World world, PlayerEntity player, Hand hand,
                                                     LivingEntity entity, ItemStack stack) {
+        WandMode mode = getMode(stack);
+
         // 检查是否为FollowingEntity
         if (!(entity instanceof FollowingEntity followingEntity)) {
+            // 如果不是FollowingEntity，且是操纵模式，可以允许选择其他实体
+            if (mode == WandMode.CONTROL) {
+                player.sendMessage(Text.literal("只能操纵方块实体").formatted(Formatting.RED), true);
+            }
             return ActionResult.PASS;
         }
-
-        WandMode mode = getMode(stack);
 
         switch (mode) {
             case FOLLOW:
@@ -303,12 +335,67 @@ public class IronBlockWandItem extends Item {
                 world.setBlockState(entityPos, storedState);
                 player.sendMessage(Text.literal("方块已还原").formatted(Formatting.GREEN), true);
                 break;
+
+            case CONTROL:
+                // 模式4：操纵模式 - 选中/发射/取消选中实体
+                handleControlModeSelect(world, player, followingEntity, hand);
+                break;
         }
 
         // 播放使用动画
         player.swingHand(hand, true);
 
         return ActionResult.SUCCESS;
+    }
+
+    /**
+     * 处理操纵模式的选中/发射/取消选中
+     */
+    private void handleControlModeSelect(World world, PlayerEntity player, FollowingEntity entity, Hand hand) {
+        // 检查实体是否已经被控制
+        if (entity.isControlled()) {
+            // 如果已经被这个玩家控制，发射它
+            if (entity.isControlledBy(player)) {
+                // 获取玩家视角方向
+                Vec3d lookDirection = player.getRotationVec(1.0F);
+
+                // 发射实体
+                entity.launchEntity(lookDirection);
+                player.sendMessage(Text.literal("实体已发射").formatted(Formatting.GREEN), true);
+            } else {
+                // 被其他玩家控制，不能操作
+                player.sendMessage(Text.literal("这个实体已被其他玩家控制").formatted(Formatting.RED), true);
+            }
+        } else {
+            // 实体没有被控制，尝试控制它
+
+            // 首先取消对当前控制的实体的控制
+            FollowingEntity currentlyControlled = findControlledEntity(world, player);
+            if (currentlyControlled != null && currentlyControlled.isControlledBy(player)) {
+                currentlyControlled.setControllingPlayer(null);
+                player.sendMessage(Text.literal("已取消选中之前的实体").formatted(Formatting.YELLOW), true);
+            }
+
+            // 然后控制新的实体
+            entity.setControllingPlayer(player);
+            player.sendMessage(Text.literal("已选中实体，移动准心进行操纵，再次右键发射").formatted(Formatting.GREEN), true);
+        }
+    }
+
+    /**
+     * 查找玩家当前正在操纵的实体
+     */
+    private FollowingEntity findControlledEntity(World world, PlayerEntity player) {
+        // 遍历世界中的所有FollowingEntity
+        for (LivingEntity entity : world.getEntitiesByClass(LivingEntity.class,
+                player.getBoundingBox().expand(100), // 搜索100格范围内
+                e -> e instanceof FollowingEntity)) {
+            FollowingEntity followingEntity = (FollowingEntity) entity;
+            if (followingEntity.isControlledBy(player)) {
+                return followingEntity;
+            }
+        }
+        return null;
     }
 
     /**
@@ -338,10 +425,12 @@ public class IronBlockWandItem extends Item {
         tooltip.add(Text.literal("§f右键实体: §7让实体停止移动").formatted(Formatting.GRAY));
         tooltip.add(Text.literal("§6模式3 - 放置").formatted(Formatting.GOLD));
         tooltip.add(Text.literal("§f右键实体: §7将实体变回方块").formatted(Formatting.GRAY));
+        tooltip.add(Text.literal("§6模式4 - 操纵").formatted(Formatting.GOLD));
+        tooltip.add(Text.literal("§f右键实体: §7选中实体/发射已选中的实体").formatted(Formatting.GRAY));
+        tooltip.add(Text.literal("§f右键空气: §7发射当前选中的实体").formatted(Formatting.GRAY));
+        tooltip.add(Text.literal("§f移动准心: §7操纵实体移动").formatted(Formatting.GRAY));
+        tooltip.add(Text.literal("§f选中实体后: §7发光效果表示被控制").formatted(Formatting.GRAY));
     }
-
-    // ==================== 属性修改器 ====================
-
 
     // ==================== 其他实用方法 ====================
 
@@ -353,6 +442,7 @@ public class IronBlockWandItem extends Item {
             case FOLLOW -> Formatting.GREEN;
             case STATIC -> Formatting.YELLOW;
             case PLACE -> Formatting.BLUE;
+            case CONTROL -> Formatting.LIGHT_PURPLE;
         };
     }
 

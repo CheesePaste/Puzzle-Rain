@@ -40,16 +40,10 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     private static final int JUMP_COOLDOWN = 20;
     private static final float MAX_SPEED = 0.5f;
     private static final float AIR_RESISTANCE = 0.98f;
-    private static final float ROTATION_SPEED = 10.0f; // 旋转速度（度/秒）
-    private static final float ROTATION_INTERPOLATION_FACTOR = 0.2f; // 旋转插值因子
 
     // 数据跟踪
     private static final TrackedData<Optional<UUID>> TARGET_UUID =
             DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.OPTIONAL_UUID);
-    private static final TrackedData<Float> TARGET_YAW =
-            DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.FLOAT);
-    private static final TrackedData<Float> CURRENT_YAW =
-            DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.FLOAT);
 
     // 状态字段
     @Nullable
@@ -58,9 +52,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     private boolean shouldJump = false;
     private int targetLostCounter = 0;
     private static final int MAX_TARGET_LOST_TICKS = 200; // 10秒后放弃跟随
-
-    // 旋转状态
-    private float prevRenderYaw; // 用于渲染插值
 
     // ================= 构造方法 =================
 
@@ -91,10 +82,10 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         Colli();
         this.MAX_TRAIL_LENGTH=200;
 
-        // 初始化旋转
-        this.prevRenderYaw = 0;
-    }
 
+
+
+    }
     public static DefaultAttributeContainer.Builder createFollowingAttributes() {
         return BaseBlockEntity.createBaseBlockAttributes()
                 .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0) // 更高的生命值
@@ -112,9 +103,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         Colli();
         this.MAX_TRAIL_LENGTH=200;
         //.info("FollowingEntity created with default constructor");
-
-        // 初始化旋转
-        this.prevRenderYaw = 0;
     }
 
     // ================= 数据跟踪 =================
@@ -123,9 +111,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
         builder.add(TARGET_UUID, Optional.empty());
-        builder.add(TARGET_YAW, 0f);
-        builder.add(CURRENT_YAW, 0f);
-        //.info("Data tracker initialized with TARGET_UUID");
+       //.info("Data tracker initialized with TARGET_UUID");
     }
 
     // ================= 目标管理 =================
@@ -190,8 +176,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         nbt.putInt("JumpTimer", this.jumpTimer);
         nbt.putBoolean("ShouldJump", this.shouldJump);
         nbt.putInt("TargetLostCounter", targetLostCounter);
-        nbt.putFloat("TargetYaw", this.dataTracker.get(TARGET_YAW));
-        nbt.putFloat("CurrentYaw", this.dataTracker.get(CURRENT_YAW));
+
     }
 
     @Override
@@ -218,17 +203,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             this.targetLostCounter = nbt.getInt("TargetLostCounter");
         }
 
-        if (nbt.contains("TargetYaw", NbtElement.FLOAT_TYPE)) {
-            this.dataTracker.set(TARGET_YAW, nbt.getFloat("TargetYaw"));
-        }
-
-        if (nbt.contains("CurrentYaw", NbtElement.FLOAT_TYPE)) {
-            this.dataTracker.set(CURRENT_YAW, nbt.getFloat("CurrentYaw"));
-        }
-
-        // 同步当前yaw
-        this.setYaw(this.dataTracker.get(CURRENT_YAW));
-        this.prevRenderYaw = this.getYaw();
+        //.info("FollowingEntity data loaded. JumpTimer: {}, ShouldJump: {}", jumpTimer, shouldJump);
     }
 
     @Override
@@ -246,102 +221,64 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
     }
 
-    // ================= 旋转系统 =================
-
-    /**
-     * 计算看向目标所需的yaw
-     */
-    private void calculateTargetRotation() {
-        if (this.target == null) {
-            return;
-        }
-
-        // 计算看向目标的方向向量
-        Vec3d toTarget = target.getPos().subtract(this.getPos());
-
-        // 只计算水平旋转角度 (Yaw)
-        double dx = toTarget.x;
-        double dz = toTarget.z;
-
-        // 计算yaw（水平旋转角度）
-        float targetYaw = (float) (Math.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0f;
-
-        // 确保角度在有效范围内
-        targetYaw = MathHelper.wrapDegrees(targetYaw);
-
-        // 更新数据跟踪器
-        this.dataTracker.set(TARGET_YAW, targetYaw);
-    }
-
-    /**
-     * 平滑插值旋转到目标角度
-     */
-    private void updateRotation(float tickDelta) {
-        if (this.target == null) {
-            return;
-        }
-
-        // 获取目标角度
-        float targetYaw = this.dataTracker.get(TARGET_YAW);
-
-        // 获取当前角度
-        float currentYaw = this.dataTracker.get(CURRENT_YAW);
-
-        // 保存之前的渲染角度用于插值
-        this.prevRenderYaw = currentYaw;
-
-        // 计算角度差，使用最短路径
-        float yawDiff = MathHelper.wrapDegrees(targetYaw - currentYaw);
-
-        // 应用旋转插值
-        float rotationStep = ROTATION_SPEED * ROTATION_INTERPOLATION_FACTOR;
-
-        // 限制最大旋转速度
-        yawDiff = MathHelper.clamp(yawDiff, -rotationStep, rotationStep);
-
-        // 应用旋转
-        float newYaw = currentYaw + yawDiff;
-
-        // 确保角度在有效范围内
-        newYaw = MathHelper.wrapDegrees(newYaw);
-
-        // 更新数据跟踪器和实体角度
-        this.dataTracker.set(CURRENT_YAW, newYaw);
-
-        // 同步到实体
-        this.setYaw(newYaw);
-        this.setHeadYaw(newYaw); // 设置头部朝向
-        this.setBodyYaw(newYaw); // 设置身体朝向
-
-        // 固定pitch为0，不抬头低头
-        this.setPitch(0f);
-    }
-
-    /**
-     * 获取用于渲染的插值yaw角度
-     */
-    public float getRenderYaw(float tickDelta) {
-        return MathHelper.lerp(tickDelta, this.prevRenderYaw, this.getYaw());
-    }
-
     // ================= 主逻辑 =================
+
+
+    /**
+     * 基于Vec3d目标位置的版本
+     * @param targetPos 目标位置
+     * @param smoothFactor 平滑系数
+     */
+    private void smoothLookAtPosition(Vec3d targetPos, float smoothFactor) {
+        // 计算方向向量
+        double dx = targetPos.x - this.getX();
+        double dz = targetPos.z - this.getZ();
+
+        // 计算目标yaw角度
+        double targetYaw = MathHelper.atan2(dz, dx) * (180.0 / Math.PI) - 90.0;
+
+        float currentYaw = this.getYaw();
+        currentYaw = MathHelper.wrapDegrees(currentYaw);
+        targetYaw = MathHelper.wrapDegrees((float)targetYaw);
+
+        // 角度插值
+        float angleDiff = MathHelper.wrapDegrees((float)targetYaw - currentYaw);
+        float newYaw = currentYaw + angleDiff * MathHelper.clamp(smoothFactor, 0, 1);
+
+        this.setYaw(newYaw);
+        this.setHeadYaw(newYaw);
+    }
+
+    /**
+     * 简洁版本 - 直接更新yaw
+     */
+    private void lookAtTarget(Entity target) {
+        // 计算看向目标所需的yaw角度
+        double dx = target.getX() - this.getX();
+        double dz = target.getZ() - this.getZ();
+
+        // 计算目标yaw角度
+        double targetYaw = MathHelper.atan2(dz, dx) * (180.0 / Math.PI) - 90.0;
+
+        // 直接设置（不插值）
+        this.setYaw((float)targetYaw);
+        this.setHeadYaw((float)targetYaw);
+        this.setBodyYaw((float) targetYaw);
+        PuzzleRain.LOGGER.info(String.valueOf(targetYaw));
+    }
 
     @Override
     public void tick() {
         // 先调用父类的tick，这会更新位置、速度、重力等
         super.tick();
 
+
         // 确保目标是最新的
         if (this.target == null || !this.target.isAlive()) {
             refreshTarget();
         }
-        debugPhysics();
+        //debugPhysics();
 
-        // 更新旋转系统
-        if (this.target != null) {
-            calculateTargetRotation();
-            updateRotation(1.0f); // 使用完整的tickDelta
-        }
 
         // 如果没有目标，停止移动
         if (this.target == null) {
@@ -352,6 +289,9 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             this.move(MovementType.SELF, this.getVelocity());
             return;
         }
+        //smoothLookAtPosition(this.target.getPos(),0.5f);
+        lookAtTarget(target);
+
 
         // 如果距离足够近，停止水平移动
         if (isClose()) {
@@ -362,6 +302,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             return;
         }
         processMovement();
+
     }
 
     @Override
@@ -401,7 +342,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
         // 应用速度和限制
         applyMovement();
     }
-
     private void debugPhysics() {
         if (this.age % 20 == 0) {  // 每秒一次
             System.out.println("=== Physics Debug ===");
@@ -411,8 +351,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             System.out.println("hasNoGravity: " + this.hasNoGravity());
             System.out.println("isOnGround (field): " + this.isOnGround());
             System.out.println("Distance to target: " + (this.target != null ? this.getPos().distanceTo(this.target.getPos()) : "No target"));
-            System.out.println("Yaw: " + this.getYaw());
-            System.out.println("Target Yaw: " + this.dataTracker.get(TARGET_YAW));
             System.out.println("==================");
         }
     }

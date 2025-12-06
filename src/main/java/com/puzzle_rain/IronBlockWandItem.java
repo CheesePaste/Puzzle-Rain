@@ -139,6 +139,7 @@ public class IronBlockWandItem extends Item {
      * 客户端快速切换模式（仅用于预览，实际切换应在服务端完成）
      */
     public static void switchToNextModeClient(PlayerEntity player, Hand hand) {
+        PuzzleRain.LOGGER.info("Switch!");
         if (player == null) return;
         ItemStack stack = player.getStackInHand(hand);
         if (stack.isEmpty() || !(stack.getItem() instanceof IronBlockWandItem)) return;

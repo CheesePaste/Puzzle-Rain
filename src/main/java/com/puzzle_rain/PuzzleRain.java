@@ -20,6 +20,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.GameRenderer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -91,8 +92,17 @@ public class PuzzleRain implements ModInitializer {
 			while (KeyBindings.addEmitterPointKey.wasPressed()){
 				addPlayerPositionToEmitterPoints(client.player);
 			}
-			FabricDefaultAttributeRegistry.register(ModEntities.FollowingEntity, FollowingEntity.createFollowingAttributes());
-			FabricDefaultAttributeRegistry.register(ModEntities.FLYING_BLOCK_ENTITY, BaseBlockEntity.createBaseBlockAttributes());
+			while(KeyBindings.switchWandModeKey.wasPressed()){
+
+
+				if(client.player.getMainHandStack().getItem() instanceof IronBlockWandItem){
+					((IronBlockWandItem) client.player.getMainHandStack().getItem()).switchToNextModeClient(client.player, client.player.getActiveHand());
+				}
+			}
+
+
+
+
 //			while (KeyBindings.generateFollowingBlock.wasPressed()){
 //				FollowingEntity f=new FollowingEntity(ModEntities.FollowingEntity,client.world,client.player,client.player.getBlockPos(), Blocks.DIRT.getDefaultState());
 //				f.setPosition(client.player.getPos());
@@ -101,7 +111,20 @@ public class PuzzleRain implements ModInitializer {
 //			}
 
 		});
+		ServerTickEvents.END_SERVER_TICK.register(server->{
+			while(KeyBindings.switchWandModeKey.wasPressed()){
+				for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+					if(player.getMainHandStack().getItem() instanceof IronBlockWandItem){
+						((IronBlockWandItem) player.getMainHandStack().getItem()).switchToNextMode(player, player.getActiveHand());
+					}
+				}
 
+
+			}
+		});
+
+		FabricDefaultAttributeRegistry.register(ModEntities.FollowingEntity, FollowingEntity.createFollowingAttributes());
+		FabricDefaultAttributeRegistry.register(ModEntities.FLYING_BLOCK_ENTITY, BaseBlockEntity.createBaseBlockAttributes());
 
 
 

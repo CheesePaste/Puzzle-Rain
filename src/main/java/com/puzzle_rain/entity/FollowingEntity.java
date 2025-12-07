@@ -52,10 +52,6 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     // 数据跟踪
     private static final TrackedData<Optional<UUID>> TARGET_UUID =
             DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.OPTIONAL_UUID);
-    private static final TrackedData<Float> TARGET_YAW =
-            DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.FLOAT);
-    private static final TrackedData<Float> CURRENT_YAW =
-            DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.FLOAT);
     private static final TrackedData<Boolean> IS_CONTROLLED =
             DataTracker.registerData(FollowingEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Optional<UUID>> CONTROLLING_PLAYER_UUID =
@@ -73,8 +69,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
     @Nullable
     private UUID controllingPlayerId;
 
-    // 旋转状态
-    private float prevRenderYaw; // 用于渲染插值
+
 
     // 控制状态
     private Vec3d targetControlPos; // 控制目标位置

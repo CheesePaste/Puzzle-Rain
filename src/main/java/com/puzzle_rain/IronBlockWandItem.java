@@ -272,7 +272,7 @@ public class IronBlockWandItem extends Item {
 
         if (controlledEntity != null && controlledEntity.isControlled()) {
             // 获取玩家视角方向
-            Vec3d lookDirection = player.getRotationVec(1.0F);
+            Vec3d lookDirection = player.getRotationVector();
 
             // 发射实体
             controlledEntity.launchEntity(lookDirection);
@@ -357,7 +357,7 @@ public class IronBlockWandItem extends Item {
             // 如果已经被这个玩家控制，发射它
             if (entity.isControlledBy(player)) {
                 // 获取玩家视角方向
-                Vec3d lookDirection = player.getRotationVec(1.0F);
+                Vec3d lookDirection = player.getRotationVector();
 
                 // 发射实体
                 entity.launchEntity(lookDirection);

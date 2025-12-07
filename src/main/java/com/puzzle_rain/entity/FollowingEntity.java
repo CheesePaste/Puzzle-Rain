@@ -268,7 +268,7 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
 
         // 标记为刚刚发射
         justLaunched = true;
-        launchCooldown = 10; // 10 tick的冷却，防止立即被重新控制
+        launchCooldown = 50; // 10 tick的冷却，防止立即被重新控制
 
         // 取消控制
         setControllingPlayer(null);
@@ -584,11 +584,11 @@ public class FollowingEntity extends BaseBlockEntity implements Targetable {
             this.setVelocity(Vec3d.ZERO);
         }
 
-        // 设置实体的朝向
-        float yaw = controller.getYaw();
-        this.setYaw(yaw);
-        this.setHeadYaw(yaw);
-        this.setBodyYaw(yaw);
+//        // 设置实体的朝向
+//        float yaw = controller.getYaw();
+//        this.setYaw(yaw);
+//        this.setHeadYaw(yaw);
+//        this.setBodyYaw(yaw);
 
         // 应用移动
         this.move(MovementType.SELF, this.getVelocity());
